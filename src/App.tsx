@@ -1,121 +1,87 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useRef, useState } from 'react'
+import MapView, { type MapViewHandle } from './components/map'
+import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
+import SearchBox from './components/SearchBox'
+import FilterPanel from './components/FilterPanel'
+import PlacePanel from './components/PlacePanel'
+import type { Era, Place } from './types'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [era, setEra] = useState<Era>('all')
+  const [showTerritories, setShowTerritories] = useState(false)
+  const [activeCats, setActiveCats] = useState<string[]>([])
+  const [selected, setSelected] = useState<Place | null>(null)
+  const mapRef = useRef<MapViewHandle>(null)
+
+  function toggleCat(cat: string) {
+    setActiveCats((cats) =>
+      cats.includes(cat) ? cats.filter((c) => c !== cat) : [...cats, cat],
+    )
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
+    <div className="app">
+      {MAP_AVAILABLE ? (
+        <MapView
+          ref={mapRef}
+          era={era}
+          showTerritories={showTerritories}
+          activeCats={activeCats}
+          selected={selected}
+          onSelect={setSelected}
+        />
+      ) : (
+        <div className="no-key">
+          <h1>Bible Atlas</h1>
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            Add your Google Maps JavaScript API key to <code>.env.local</code> to
+            launch the map — or switch to the keyless map with{' '}
+            <code>VITE_MAP_PROVIDER=maplibre</code>.
           </p>
+          <pre>VITE_GOOGLE_MAPS_API_KEY=your_key_here</pre>
+          <ol>
+            <li>Create/reuse a key with the <strong>Maps JavaScript API</strong> enabled.</li>
+            <li>Copy <code>.env.example</code> to <code>.env.local</code> and paste the key.</li>
+            <li>Restart <code>npm run dev</code>.</li>
+          </ol>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      )}
 
-      <div className="ticks"></div>
+      <FilterPanel
+        era={era}
+        onEra={setEra}
+        showTerritories={showTerritories}
+        onTerritories={setShowTerritories}
+        activeCats={activeCats}
+        onToggleCat={toggleCat}
+      />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <div className="search-wrap">
+        <SearchBox
+          onPick={(place) => {
+            setSelected(place)
+            mapRef.current?.flyTo(place)
+          }}
+        />
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {selected && MAP_AVAILABLE && (
+        <PlacePanel
+          place={selected}
+          onClose={() => {
+            setSelected(null)
+            mapRef.current?.clearSelection()
+          }}
+        />
+      )}
+
+      <footer className="attribution">
+        Map: {MAP_PROVIDER === 'maplibre' ? 'OpenFreeMap © OpenMapTiles · OpenStreetMap' : 'Google Maps'} ·
+        Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · tribal
+        boundaries curated from Joshua 13–19
+      </footer>
+    </div>
   )
 }
 

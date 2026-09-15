@@ -1,32 +1,56 @@
-# React + TypeScript + Vite
+# Bible Atlas
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An interactive map of Bible geography. Browse ~1,300 identifiable places from
+the OpenBible.info geocoding dataset, filter by testament, overlay the tribal
+allotments of Joshua 13–19, and trace 179 journey routes (UBS Bible Routes) for
+everything from Abram's journey to Paul's voyages.
 
-Currently, two official plugins are available:
+By default it maps on **Google Maps**; a keyless **MapLibre + OpenFreeMap**
+backend is built in as a drop-in alternative.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Searchable places** — every identifiable ancient place, with variant spellings
+- **Testament / timeline filter** — Old Testament, New Testament, or all
+- **Tribe boundaries** — simplified allotments of the twelve tribes (Josh. 13–19)
+- **Scripture cross-references** — every verse where a place appears, linking to BibleGateway
+- **Travel routes** — 179 polylines grouped by narrative era (Patriarchs, Exodus, Conquest, Judges, Kingdom, Prophets, Jesus, Acts & Paul)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Setup
 
-## Expanding the Oxlint configuration
+1. Install: `npm install`
+2. Choose a map provider in `.env.local` (see `.env.example`):
+   - `VITE_MAP_PROVIDER=google` (default) — needs a **Maps JavaScript API** key:
+     https://console.cloud.google.com/google/maps-apis
+   - `VITE_MAP_PROVIDER=maplibre` — keyless, free OpenFreeMap vector tiles
+3. Copy the key (google only):
+   ```
+   cp .env.example .env.local
+   # edit .env.local and paste your key
+   ```
+4. Run: `npm run dev`
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Both providers expose the same search, filtering, tribal overlay and route
+layers. Switch anytime via the env var; no code changes needed.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Regenerating the dataset
+
+Reference data lives in `scripts/reference/` (gitignored clones):
+
+- [OpenBible.info Bible Geocoding Data](https://github.com/openbibleinfo/Bible-Geocoding-Data) (CC-BY-4.0)
+- [UBS Bible Routes](https://github.com/ubsicap/ubs-open-license) (CC BY-SA 4.0)
+
+```
+git clone --depth 1 https://github.com/openbibleinfo/Bible-Geocoding-Data.git scripts/reference/openbible
+git clone --depth 1 https://github.com/ubsicap/ubs-open-license.git scripts/reference/ubs
+node scripts/prepare-data.mjs
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Tribal territory polygons are hand-curated approximations in
+`scripts/territories-data.mjs` based on Joshua 13–19.
+
+## Data & license
+
+- Place data: OpenBible.info, CC-BY-4.0
+- Routes: UBS Bible Routes, CC BY-SA 4.0
+- Tribal boundaries: curated approximations, not exact
