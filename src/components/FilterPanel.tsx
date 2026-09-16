@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import type { Era } from '../types'
+import type { Era, Place } from '../types'
 import { CAT_COLORS, ROUTE_CATS } from '../types'
 import { TERRITORIES } from '../data'
+import type { BookPlace } from '../data/books'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './map/types'
+import BookSection from './BookSection'
 
 interface FilterPanelProps {
   era: Era
@@ -11,9 +13,15 @@ interface FilterPanelProps {
   onTerritories: (v: boolean) => void
   activeCats: string[]
   onToggleCat: (cat: string) => void
+  book: string | null
+  bookPlaces: BookPlace[] | null
+  bookError: boolean
+  onBook: (name: string | null) => void
+  onPickPlace: (place: Place) => void
 }
 
-const startsOpen = () => !window.matchMedia('(max-width: 720px)').matches
+const isPhone = () => window.matchMedia('(max-width: 720px)').matches
+const startsOpen = () => !isPhone()
 
 export default function FilterPanel({
   era,
@@ -22,6 +30,11 @@ export default function FilterPanel({
   onTerritories,
   activeCats,
   onToggleCat,
+  book,
+  bookPlaces,
+  bookError,
+  onBook,
+  onPickPlace,
 }: FilterPanelProps) {
   const [open, setOpen] = useState(startsOpen)
 
@@ -43,6 +56,19 @@ export default function FilterPanel({
 
       {open && (
         <>
+          <BookSection
+            book={book}
+            places={bookPlaces}
+            error={bookError}
+            onBook={onBook}
+            onPick={(place) => {
+              // On phones the panel covers the map; get out of the way.
+              if (isPhone()) setOpen(false)
+              onPickPlace(place)
+            }}
+          />
+
+          {!book && (
           <section className="filters">
             <h2>Testament</h2>
             <div className="segmented">
@@ -80,6 +106,7 @@ export default function FilterPanel({
             </ul>
             <p className="fine">Faded dots mark places whose location is uncertain.</p>
           </section>
+          )}
 
           <section className="filters">
             <h2>

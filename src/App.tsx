@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import MapView, { type MapViewHandle } from './components/map'
 import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
 import SearchBox from './components/SearchBox'
 import FilterPanel from './components/FilterPanel'
 import PlacePanel from './components/PlacePanel'
 import { byId } from './data'
+import { bookFromSlug, bookSlug, loadBookIndex, toMapBook, type BookIndex } from './data/books'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import type { Era, Place } from './types'
 import './App.css'
@@ -15,20 +16,51 @@ function placeFromUrl(): Place | null {
   return (id && byId.get(id)) || null
 }
 
+/** The book named by `?book=<slug>`. */
+function bookFromUrl(): string | null {
+  return bookFromSlug(new URLSearchParams(window.location.search).get('book'))
+}
+
 function App() {
   const [era, setEra] = useState<Era>('all')
   const [showTerritories, setShowTerritories] = useState(false)
   const [activeCats, setActiveCats] = useState<string[]>([])
   const [selected, setSelected] = useState<Place | null>(placeFromUrl)
   const mapRef = useRef<MapViewHandle>(null)
+  const [book, setBook] = useState<string | null>(bookFromUrl)
+  const [bookIndex, setBookIndex] = useState<BookIndex | null>(null)
+  const [bookError, setBookError] = useState(false)
+  // A shared link that names a place keeps the map on that place instead of fitting the book.
+  const fittedRef = useRef<string | null>(selected ? book : null)
+
+  useEffect(() => {
+    if (!book || bookIndex) return
+    loadBookIndex().then(setBookIndex, () => setBookError(true))
+  }, [book, bookIndex])
+
+  const bookPlaces = book && bookIndex ? bookIndex[book] : null
+  const mapBook = useMemo(() => (book && bookPlaces ? toMapBook(book, bookPlaces) : null), [book, bookPlaces])
+
+  useEffect(() => {
+    if (!mapBook) {
+      if (!book) fittedRef.current = null
+      return
+    }
+    if (fittedRef.current === mapBook.name) return
+    fittedRef.current = mapBook.name
+    if (mapBook.places.size) mapRef.current?.fitBook(mapBook)
+  }, [book, mapBook])
 
   useEffect(() => {
     const url = new URL(window.location.href)
+    if (book) url.searchParams.set('book', bookSlug(book))
+    else url.searchParams.delete('book')
     if (selected) url.searchParams.set('place', selected.id)
     else url.searchParams.delete('place')
     window.history.replaceState(null, '', url)
-    document.title = selected ? `${selected.name} · Bible Atlas` : 'Bible Atlas'
-  }, [selected])
+    const parts = [selected?.name, book, 'Bible Atlas'].filter(Boolean)
+    document.title = parts.join(' · ')
+  }, [selected, book])
 
   const usage = MAP_PROVIDER === 'google' ? getUsage() : null
   const overLimit = usage ? isAtGoogleLoadLimit(usage) : false
@@ -41,16 +73,21 @@ function App() {
     )
   }
 
+  function pickPlace(place: Place) {
+    setSelected(place)
+    mapRef.current?.flyTo(place)
+  }
+
   return (
     <div className={`app${selected ? ' has-selection' : ''}`}>
       {mapShown ? (
         <MapView
           ref={mapRef}
-          era={era}
+          era={mapBook ? 'all' : era}
           showTerritories={showTerritories}
           activeCats={activeCats}
           selected={selected}
-          book={null}
+          book={mapBook}
           onSelect={setSelected}
         />
       ) : overLimit ? (
@@ -91,16 +128,16 @@ function App() {
         onTerritories={setShowTerritories}
         activeCats={activeCats}
         onToggleCat={toggleCat}
+        book={book}
+        bookPlaces={bookPlaces}
+        bookError={bookError}
+        onBook={setBook}
+        onPickPlace={pickPlace}
       />
 
       {mapShown && (
         <div className="search-wrap">
-          <SearchBox
-            onPick={(place) => {
-              setSelected(place)
-              mapRef.current?.flyTo(place)
-            }}
-          />
+          <SearchBox onPick={pickPlace} />
         </div>
       )}
 
