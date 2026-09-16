@@ -82,6 +82,28 @@ for (const a of ancient) {
 }
 places.sort((a, b) => (b.score * Math.min(b.verseCount, 50)) - (a.score * Math.min(a.verseCount, 50)))
 
+// ---- Books ----
+// Per-book index: for each book, the places it names, most-mentioned first.
+const placeIds = new Set(places.map((p) => p.id))
+const books = Object.fromEntries(BOOKS.map((b) => [b, []]))
+for (const a of ancient) {
+  if (!placeIds.has(a.id)) continue
+  const byBook = new Map()
+  for (const v of a.verses || []) {
+    const sort = Number(v.sort)
+    const n = Math.floor(sort / 1e6)
+    let entry = byBook.get(n)
+    if (!entry) byBook.set(n, (entry = { id: a.id, first: sort, verses: new Map() }))
+    entry.first = Math.min(entry.first, sort)
+    entry.verses.set(sort, v.readable)
+  }
+  for (const [n, { id, first, verses }] of byBook) {
+    const refs = [...verses].sort(([x], [y]) => x - y).map(([, r]) => r)
+    books[BOOKS[n - 1]].push({ id, count: refs.length, first, refs })
+  }
+}
+for (const list of Object.values(books)) list.sort((a, b) => b.count - a.count || a.first - b.first)
+
 // ---- Routes (UBS) ----
 const routeFiles = globSync(join(REF, 'ubs', 'ubs-bible-routes', 'GeoJsonRoutes', '*.geojson'))
 const ROUTE_CATS = [
@@ -139,6 +161,7 @@ import { TERRITORIES } from './territories-data.mjs'
 writeFileSync(join(OUT, 'places.json'), JSON.stringify(places))
 writeFileSync(join(OUT, 'routes.json'), JSON.stringify({ categories: [...new Set(ROUTE_CATS.map(([, , c]) => c))], routes }))
 writeFileSync(join(OUT, 'territories.json'), JSON.stringify(TERRITORIES))
+writeFileSync(join(OUT, 'books.json'), JSON.stringify(books))
 
 function round(n, d) {
   return Number(n.toFixed(d))
@@ -146,6 +169,7 @@ function round(n, d) {
 
 console.log('places:', places.length)
 console.log('routes:', routes.length)
+console.log('books with places:', Object.values(books).filter((l) => l.length).length)
 const cats = {}
 for (const r of routes) cats[r.cat] = (cats[r.cat] || 0) + 1
 console.log('route cats:', cats)
