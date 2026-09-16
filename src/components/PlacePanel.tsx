@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { Place } from '../types'
+import type { BookPlace } from '../data/books'
 
 interface PlacePanelProps {
   place: Place
   onClose: () => void
+  inBook?: { name: string; entry: BookPlace } | null
 }
 
 const BOOKS_SHOWN = 6
@@ -16,7 +18,7 @@ function openbibleUrl(place: Place): string {
   return `https://www.openbible.info/geo/ancient/${place.id}/${place.slug}`
 }
 
-export default function PlacePanel({ place, onClose }: PlacePanelProps) {
+export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) {
   const [allBooks, setAllBooks] = useState(false)
   const testaments = place.ot && place.nt ? 'Old & New Testament' : place.nt ? 'New Testament' : 'Old Testament'
   const books = allBooks ? place.books : place.books.slice(0, BOOKS_SHOWN)
@@ -79,10 +81,28 @@ export default function PlacePanel({ place, onClose }: PlacePanelProps) {
         </p>
       )}
 
+      {inBook && (
+        <>
+          <h3>
+            In {inBook.name}
+            <span className="count">{inBook.entry.count}</span>
+          </h3>
+          <ul className="refs">
+            {inBook.entry.refs.map((r) => (
+              <li key={r}>
+                <a href={bgUrl(r)} target="_blank" rel="noreferrer">
+                  {r}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       {place.refs.length > 0 && (
         <>
           <h3>
-            Scripture references
+            {inBook ? 'All Scripture' : 'Scripture references'}
             <span className="count">{place.verseCount}</span>
           </h3>
           <ul className="refs">

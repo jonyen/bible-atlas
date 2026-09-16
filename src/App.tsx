@@ -148,6 +148,11 @@ function App() {
             setSelected(null)
             mapRef.current?.clearSelection()
           }}
+          inBook={
+            mapBook?.places.has(selected.id)
+              ? { name: mapBook.name, entry: mapBook.places.get(selected.id)! }
+              : null
+          }
         />
       )}
 
