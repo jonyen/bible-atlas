@@ -1,4 +1,5 @@
 import { PLACES, byId } from '../../data'
+import { countTier, type MapBook } from '../../data/books'
 import type { Place, Route, Territory } from '../../types'
 import {
   BOTH_COLOR,
@@ -21,19 +22,60 @@ export function eraMatch(p: Place, era: MapEra): boolean {
   return era === 'ot' ? p.ot : p.nt
 }
 
-/** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. */
-export function visiblePlaces(bounds: ViewportBounds, era: MapEra): Place[] {
+/** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. A book replaces the era filter. */
+export function visiblePlaces(bounds: ViewportBounds, era: MapEra, book: MapBook | null = null): Place[] {
   const latPad = (bounds.north - bounds.south) * 0.25
   const lngPad = (bounds.east - bounds.west) * 0.25
   const list: Place[] = []
   for (const p of PLACES) {
-    if (!eraMatch(p, era)) continue
+    if (book ? !book.places.has(p.id) : !eraMatch(p, era)) continue
     if (p.lat < bounds.south - latPad || p.lat > bounds.north + latPad) continue
     if (p.lng < bounds.west - lngPad || p.lng > bounds.east + lngPad) continue
     list.push(p)
     if (list.length >= MAX_MARKERS) break
   }
   return list
+}
+
+/** Marker size tier and emphasis. Without a book: confidence. With one: mentions, and top places stand out. */
+export function markerStyle(p: Place, book: MapBook | null): { tier: 0 | 1 | 2; strong: boolean } {
+  const entry = book?.places.get(p.id)
+  if (!book || !entry) return { tier: p.high ? 1 : 0, strong: p.high }
+  return { tier: countTier(entry.count, book.max), strong: book.top.has(p.id) || p.high }
+}
+
+const MIN_SPAN = 0.3
+
+/** Bounding box of a book's places, at least MIN_SPAN degrees each way. */
+export function bookBounds(book: MapBook): ViewportBounds | null {
+  let south = 90
+  let north = -90
+  let west = 180
+  let east = -180
+  for (const id of book.places.keys()) {
+    const p = byId.get(id)
+    if (!p) continue
+    south = Math.min(south, p.lat)
+    north = Math.max(north, p.lat)
+    west = Math.min(west, p.lng)
+    east = Math.max(east, p.lng)
+  }
+  if (south > north) return null
+  const latGrow = Math.max(0, MIN_SPAN - (north - south)) / 2
+  const lngGrow = Math.max(0, MIN_SPAN - (east - west)) / 2
+  const EPSILON = 1e-10
+  return {
+    south: south - latGrow - EPSILON,
+    north: north + latGrow + EPSILON,
+    west: west - lngGrow - EPSILON,
+    east: east + lngGrow + EPSILON
+  }
+}
+
+/** Pixel padding for fitting a book, clear of the layers panel on desktop. */
+export function fitPadding(): { top: number; right: number; bottom: number; left: number } {
+  const phone = window.matchMedia('(max-width: 720px)').matches
+  return phone ? { top: 80, right: 30, bottom: 40, left: 30 } : { top: 80, right: 60, bottom: 50, left: 330 }
 }
 
 /** Vertical nudge that keeps a picked place above the mobile bottom sheet. */
