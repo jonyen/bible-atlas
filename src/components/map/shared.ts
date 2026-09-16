@@ -38,21 +38,13 @@ export function visiblePlaces(bounds: ViewportBounds, era: MapEra): Place[] {
   return list
 }
 
-export function findPlace(id: string): Place | undefined {
-  return byId.get(id)
+/** Vertical nudge that keeps a picked place above the mobile bottom sheet. */
+export function sheetOffset(): number {
+  return window.matchMedia('(max-width: 720px)').matches ? window.innerHeight * 0.22 : 0
 }
 
-export function placeInfoNode(p: Place, onOpen: () => void): HTMLDivElement {
-  const el = document.createElement('div')
-  el.className = 'iw'
-  const title = `${p.article ? p.article + ' ' : ''}${p.name}`
-  el.innerHTML = `
-    <h3>${title}</h3>
-    <p class="iw-type">${p.type}${p.alt.length ? ' · also ' + p.alt.slice(0, 3).join(', ') : ''}</p>
-    <p class="iw-sub">${p.verseCount} verse${p.verseCount === 1 ? '' : 's'} · ${p.books.slice(0, 4).join(', ')}${p.books.length > 4 ? '…' : ''}</p>
-    <button type="button" class="iw-btn">View details</button>`
-  el.querySelector('button')?.addEventListener('click', onOpen)
-  return el
+export function findPlace(id: string): Place | undefined {
+  return byId.get(id)
 }
 
 export function routeInfoNode(r: Route): HTMLDivElement {

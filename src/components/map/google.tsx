@@ -5,16 +5,20 @@ import { CAT_COLORS } from '../../types'
 import type { Place } from '../../types'
 import {
   placeColor,
-  placeInfoNode,
+  sheetOffset,
   routeInfoNode,
   territoryInfoNode,
   visiblePlaces,
 } from './shared'
 import type { MapViewHandle, MapViewProps } from './types'
 
-function dotIcon(color: string, strong: boolean): google.maps.Icon {
-  const r = strong ? 7 : 5
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}"><circle cx="${r}" cy="${r}" r="${r * 0.82}" fill="${color}" fill-opacity="${strong ? 0.95 : 0.5}" stroke="#ffffff" stroke-width="1"/></svg>`
+function dotIcon(color: string, strong: boolean, selected = false): google.maps.Icon {
+  const r = selected ? 12 : strong ? 7 : 5
+  const dot = selected ? 6.5 : r * 0.82
+  const ring = selected
+    ? `<circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="none" stroke="${color}" stroke-width="3"/>`
+    : ''
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}">${ring}<circle cx="${r}" cy="${r}" r="${dot}" fill="${color}" fill-opacity="${strong || selected ? 0.95 : 0.5}" stroke="#ffffff" stroke-width="${selected ? 2 : 1}"/></svg>`
   return {
     url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     size: new google.maps.Size(r * 2, r * 2),
@@ -37,16 +41,20 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   const markersRef = useRef(new Map<string, google.maps.Marker>())
   const rafRef = useRef(0)
   const [ready, setReady] = useState(false)
+  // Initial center only; later selections move the map through flyTo.
+  const startRef = useRef(selected)
 
   useEffect(() => {
     if (!elRef.current) return
+    const start = startRef.current
     const map = new google.maps.Map(elRef.current, {
-      center: { lat: 31.78, lng: 35.23 },
-      zoom: 8,
+      center: start ? { lat: start.lat, lng: start.lng } : { lat: 31.78, lng: 35.23 },
+      zoom: start ? 10 : 8,
       mapTypeId: 'terrain',
       minZoom: 3,
       maxZoom: 17,
       mapTypeControl: true,
+      mapTypeControlOptions: { position: google.maps.ControlPosition.INLINE_END_BLOCK_END },
       fullscreenControl: false,
       streetViewControl: false,
       styles: [
@@ -90,7 +98,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
 
       for (const p of list) {
         const isSel = selected?.id === p.id
-        const icon = dotIcon(placeColor(p, era), isSel || p.high)
+        const icon = dotIcon(placeColor(p, era), p.high, isSel)
         const marker = new google.maps.Marker({
           position: { lat: p.lat, lng: p.lng },
           map,
@@ -99,7 +107,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
           zIndex: isSel ? 1000 : 1,
         })
         marker.addListener('click', () => {
-          showInfo(placeInfoNode(p, () => onSelect(p)), p.lat, p.lng)
+          infoRef.current?.close()
           onSelect(p)
         })
         markersRef.current.set(p.id, marker)
@@ -193,7 +201,8 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         if (!map) return
         map.panTo({ lat: place.lat, lng: place.lng })
         map.setZoom(Math.max(map.getZoom() ?? 8, 10))
-        showInfo(placeInfoNode(place, () => onSelect(place)), place.lat, place.lng)
+        map.panBy(0, sheetOffset())
+        infoRef.current?.close()
         onSelect(place)
       },
       clearSelection() {

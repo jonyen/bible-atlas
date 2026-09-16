@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Place } from '../types'
 
 interface PlacePanelProps {
@@ -5,8 +6,10 @@ interface PlacePanelProps {
   onClose: () => void
 }
 
-function bgRef(place: Place): string {
-  return `https://www.biblegateway.com/passage/?search=${encodeURIComponent(place.first)}&version=ESV`
+const BOOKS_SHOWN = 6
+
+function bgUrl(ref: string): string {
+  return `https://www.biblegateway.com/passage/?search=${encodeURIComponent(ref)}&version=ESV`
 }
 
 function openbibleUrl(place: Place): string {
@@ -14,17 +17,26 @@ function openbibleUrl(place: Place): string {
 }
 
 export default function PlacePanel({ place, onClose }: PlacePanelProps) {
+  const [allBooks, setAllBooks] = useState(false)
   const otOnly = place.ot && !place.nt
   const ntOnly = place.nt && !place.ot
   const testaments = otOnly ? 'Old Testament' : ntOnly ? 'New Testament' : 'Old & New Testament'
+  const books = allBooks ? place.books : place.books.slice(0, BOOKS_SHOWN)
+  const hiddenBooks = place.books.length - books.length
+  const moreVerses = place.verseCount - place.refs.length
 
   return (
-    <section className="panel place-panel">
+    <section className="panel place-panel" aria-label={`${place.name} details`}>
       <header>
-        <h2>
-          {place.article ? place.article + ' ' : ''}
-          {place.name}
-        </h2>
+        <div>
+          <h2>
+            {place.article ? place.article + ' ' : ''}
+            {place.name}
+          </h2>
+          {place.alt.length > 0 && (
+            <p className="also">also {place.alt.slice(0, 3).join(', ')}</p>
+          )}
+        </div>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
           ✕
         </button>
@@ -48,14 +60,24 @@ export default function PlacePanel({ place, onClose }: PlacePanelProps) {
           </div>
         )}
         <div>
-          <dt>Confidence</dt>
-          <dd>{place.high ? 'High' : 'Low'} ({place.score})</dd>
+          <dt>Location</dt>
+          <dd title={`OpenBible.info confidence score ${place.score} of 1000`}>
+            {place.high ? 'Confident' : 'Uncertain'}
+          </dd>
         </div>
       </dl>
 
       {place.books.length > 0 && (
         <p className="books">
-          Appears in <strong>{place.books.join(', ')}</strong>
+          Appears in <strong>{books.join(', ')}</strong>
+          {hiddenBooks > 0 && (
+            <>
+              {' '}
+              <button type="button" className="text-btn" onClick={() => setAllBooks(true)}>
+                +{hiddenBooks} more
+              </button>
+            </>
+          )}
         </p>
       )}
 
@@ -66,20 +88,20 @@ export default function PlacePanel({ place, onClose }: PlacePanelProps) {
             <span className="count">{place.verseCount}</span>
           </h3>
           <ul className="refs">
-            {place.refs.slice(0, 24).map((r, i) => (
-              <li key={i}>{r}</li>
+            {place.refs.map((r) => (
+              <li key={r}>
+                <a href={bgUrl(r)} target="_blank" rel="noreferrer">
+                  {r}
+                </a>
+              </li>
             ))}
-            {place.verseCount > place.refs.length && <li className="more">+{place.verseCount - place.refs.length} more verses</li>}
           </ul>
         </>
       )}
 
       <footer className="links">
-        <a href={bgRef(place)} target="_blank" rel="noreferrer">
-          Read {place.first} at BibleGateway
-        </a>
         <a href={openbibleUrl(place)} target="_blank" rel="noreferrer">
-          Full data at OpenBible.info
+          {moreVerses > 0 ? `All ${place.verseCount} verses at OpenBible.info` : 'Full data at OpenBible.info'}
         </a>
       </footer>
     </section>

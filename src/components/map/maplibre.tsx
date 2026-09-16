@@ -7,7 +7,7 @@ import type { Place } from '../../types'
 import {
   findPlace,
   placeColor,
-  placeInfoNode,
+  sheetOffset,
   routeInfoNode,
   territoryInfoNode,
   visiblePlaces,
@@ -41,14 +41,17 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const rafRef = useRef(0)
   const [ready, setReady] = useState(false)
+  // Initial center only; later selections move the map through flyTo.
+  const startRef = useRef(selected)
 
   useEffect(() => {
     if (!elRef.current) return
+    const start = startRef.current
     const map = new maplibregl.Map({
       container: elRef.current,
       style: STYLE,
-      center: [35.23, 31.78],
-      zoom: 8,
+      center: start ? [start.lng, start.lat] : [35.23, 31.78],
+      zoom: start ? 10 : 8,
       minZoom: 3,
       maxZoom: 17,
     })
@@ -64,10 +67,10 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         source: PLACES_SOURCE,
         paint: {
           'circle-color': ['get', 'color'],
-          'circle-radius': ['case', ['get', 'sel'], 8, ['get', 'strong'], 5.5, 3.5],
+          'circle-radius': ['case', ['==', ['get', 'sel'], 1], 8, ['==', ['get', 'strong'], 1], 5.5, 3.5],
           'circle-opacity': ['get', 'op'],
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 0.8,
+          'circle-stroke-width': ['case', ['==', ['get', 'sel'], 1], 2.5, 0.8],
         },
       })
       map.addSource(ROUTES_SOURCE, { type: 'geojson', data: fc([]) })
@@ -208,7 +211,6 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     if (!ready || !inst) return
     const map = inst
     function onClick(e: maplibregl.MapMouseEvent) {
-      console.log('ATLAS_ML_CLICK', e.point)
       const feats = map.queryRenderedFeatures(e.point, {
         layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL, TERRITORIES_LINE],
       })
@@ -222,7 +224,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       if (layer === PLACES_LAYER) {
         const p = f.properties?.['place-id'] ? findPlace(f.properties['place-id']) : undefined
         if (!p) return
-        showPopup(placeInfoNode(p, () => onSelect(p)), p.lng, p.lat)
+        popupRef.current?.remove()
         onSelect(p)
       } else if (layer === ROUTES_LAYER) {
         const r = ROUTES.find((x) => x.id === f.properties?.['route-id'])
@@ -257,8 +259,8 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       flyTo(place: Place) {
         const map = mapRef.current
         if (!map) return
-        map.flyTo({ center: [place.lng, place.lat], zoom: Math.max(map.getZoom(), 10), essential: true })
-        showPopup(placeInfoNode(place, () => onSelect(place)), place.lng, place.lat)
+        map.flyTo({ center: [place.lng, place.lat], zoom: Math.max(map.getZoom(), 10), offset: [0, -sheetOffset()], essential: true })
+        popupRef.current?.remove()
         onSelect(place)
       },
       clearSelection() {

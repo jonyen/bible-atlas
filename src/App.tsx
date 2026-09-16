@@ -1,19 +1,34 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MapView, { type MapViewHandle } from './components/map'
 import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
 import SearchBox from './components/SearchBox'
 import FilterPanel from './components/FilterPanel'
 import PlacePanel from './components/PlacePanel'
+import { byId } from './data'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import type { Era, Place } from './types'
 import './App.css'
+
+/** The place named by `?place=<id>`, so a selection can be shared as a link. */
+function placeFromUrl(): Place | null {
+  const id = new URLSearchParams(window.location.search).get('place')
+  return (id && byId.get(id)) || null
+}
 
 function App() {
   const [era, setEra] = useState<Era>('all')
   const [showTerritories, setShowTerritories] = useState(false)
   const [activeCats, setActiveCats] = useState<string[]>([])
-  const [selected, setSelected] = useState<Place | null>(null)
+  const [selected, setSelected] = useState<Place | null>(placeFromUrl)
   const mapRef = useRef<MapViewHandle>(null)
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (selected) url.searchParams.set('place', selected.id)
+    else url.searchParams.delete('place')
+    window.history.replaceState(null, '', url)
+    document.title = selected ? `${selected.name} · Bible Atlas` : 'Bible Atlas'
+  }, [selected])
 
   const usage = MAP_PROVIDER === 'google' ? getUsage() : null
   const overLimit = usage ? isAtGoogleLoadLimit(usage) : false
@@ -25,7 +40,7 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${selected ? ' has-selection' : ''}`}>
       {MAP_AVAILABLE && !overLimit ? (
         <MapView
           ref={mapRef}
@@ -98,7 +113,7 @@ function App() {
         Map: {MAP_PROVIDER === 'maplibre' ? 'OpenFreeMap © OpenMapTiles · OpenStreetMap' : 'Google Maps'} ·
         Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · tribal
         boundaries curated from Joshua 13–19
-        {usage && (
+        {usage && import.meta.env.DEV && (
           <span className="usage-badge" title="Billable map loads this month (Maps JavaScript API)">
             Google: {usage.loads} / {GOOGLE_LOAD_LIMIT} loads this month
           </span>

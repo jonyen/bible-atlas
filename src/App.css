@@ -346,10 +346,15 @@ body,
 
 .facts {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
+  gap: 4px;
   margin: 12px 0;
   font-size: 0.86rem;
+}
+
+.facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .facts dt {
@@ -453,12 +458,6 @@ body,
   color: var(--accent);
 }
 
-.iw-type {
-  margin: 0 0 4px;
-  font-size: 0.82rem;
-  color: var(--ink);
-}
-
 .iw-sub {
   margin: 0;
   font-size: 0.76rem;
@@ -466,21 +465,76 @@ body,
   line-height: 1.45;
 }
 
-.iw-btn {
-  margin-top: 8px;
+/* ---------- Panel additions ---------- */
+.brand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-left.collapsed .brand {
+  margin-bottom: 0;
+}
+
+.layers-btn {
+  flex: none;
   font: inherit;
-  font-size: 0.8rem;
-  padding: 5px 10px;
+  font-size: 0.75rem;
+  padding: 4px 10px;
   border: 1px solid var(--panel-border);
-  border-radius: 7px;
-  background: var(--panel);
+  border-radius: 999px;
+  background: #fff;
   color: var(--accent);
   cursor: pointer;
 }
 
-.iw-btn:hover {
+.layers-btn:hover,
+.text-btn:hover {
   background: #f4ecdc;
 }
+
+.legend.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 10px;
+}
+
+.swatch.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.also {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.text-btn {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.refs a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--panel-border);
+}
+
+.refs a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 
 @media (max-width: 720px) {
   .panel-left {
@@ -498,11 +552,26 @@ body,
     top: 8px;
   }
 
+  .panel-left.collapsed {
+    left: auto;
+    padding: 10px 12px;
+  }
+
+  .panel-left.collapsed .brand {
+    display: none;
+  }
+
+  .has-selection .panel-left {
+    display: none;
+  }
+
   .place-panel {
+    top: auto;
+    bottom: 56px;
     left: 8px;
     right: 8px;
     width: auto;
-    top: 60px;
+    max-height: 50vh;
   }
 
   .brand span {
