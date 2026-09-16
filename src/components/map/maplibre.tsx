@@ -160,12 +160,10 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       })
     }
 
-    map.on('move', schedule)
     map.on('moveend', schedule)
     schedule()
     return () => {
       disposed = true
-      map.off('move', schedule)
       map.off('moveend', schedule)
     }
   }, [ready, era, selected?.id, onSelect])

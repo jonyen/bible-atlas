@@ -4,6 +4,7 @@ import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
 import SearchBox from './components/SearchBox'
 import FilterPanel from './components/FilterPanel'
 import PlacePanel from './components/PlacePanel'
+import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import type { Era, Place } from './types'
 import './App.css'
 
@@ -14,6 +15,9 @@ function App() {
   const [selected, setSelected] = useState<Place | null>(null)
   const mapRef = useRef<MapViewHandle>(null)
 
+  const usage = MAP_PROVIDER === 'google' ? getUsage() : null
+  const overLimit = usage ? isAtGoogleLoadLimit(usage) : false
+
   function toggleCat(cat: string) {
     setActiveCats((cats) =>
       cats.includes(cat) ? cats.filter((c) => c !== cat) : [...cats, cat],
@@ -22,7 +26,7 @@ function App() {
 
   return (
     <div className="app">
-      {MAP_AVAILABLE ? (
+      {MAP_AVAILABLE && !overLimit ? (
         <MapView
           ref={mapRef}
           era={era}
@@ -31,6 +35,20 @@ function App() {
           selected={selected}
           onSelect={setSelected}
         />
+      ) : overLimit ? (
+        <div className="no-key">
+          <h1>Bible Atlas</h1>
+          <p>
+            Google Maps has hit this month's load limit (
+            <strong>{usage!.loads}</strong> of <strong>{GOOGLE_LOAD_LIMIT}</strong>),
+            so it stays paused until next month — that keeps the billing meter at
+            zero.
+          </p>
+          <p>
+            The map still works keyless: rebuild with{' '}
+            <code>VITE_MAP_PROVIDER=maplibre</code>.
+          </p>
+        </div>
       ) : (
         <div className="no-key">
           <h1>Bible Atlas</h1>
@@ -80,6 +98,11 @@ function App() {
         Map: {MAP_PROVIDER === 'maplibre' ? 'OpenFreeMap © OpenMapTiles · OpenStreetMap' : 'Google Maps'} ·
         Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · tribal
         boundaries curated from Joshua 13–19
+        {usage && (
+          <span className="usage-badge" title="Billable map loads this month (Maps JavaScript API)">
+            Google: {usage.loads} / {GOOGLE_LOAD_LIMIT} loads this month
+          </span>
+        )}
       </footer>
     </div>
   )

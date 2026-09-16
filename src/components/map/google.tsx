@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { ROUTES, TERRITORIES } from '../../data'
+import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
 import type { Place } from '../../types'
 import {
@@ -54,6 +55,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       ],
     })
     mapRef.current = map
+    recordLoad()
     setReady(true)
     return () => {
       mapRef.current = null
@@ -112,7 +114,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     }
 
     const markers = markersRef.current
-    const bh = map.addListener('bounds_changed', schedule)
+    const bh = map.addListener('idle', schedule)
     schedule()
     return () => {
       disposed = true
