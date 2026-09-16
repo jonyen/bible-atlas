@@ -1,6 +1,8 @@
 export interface Place {
   id: string
   name: string
+  /** OpenBible.info URL slug, e.g. "jericho-1". */
+  slug: string
   article: string
   type: string
   lat: number
@@ -23,7 +25,8 @@ export interface Route {
   name: string
   cat: string
   era: 'ot' | 'nt'
-  path: [number, number][]
+  /** Separate line segments, each a list of [lng, lat]. */
+  paths: [number, number][][]
 }
 
 export interface Territory {

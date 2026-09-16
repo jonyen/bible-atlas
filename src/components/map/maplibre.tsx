@@ -1,14 +1,16 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { ROUTES, TERRITORIES } from '../../data'
+import { TERRITORIES } from '../../data'
+import { loadRoutes } from '../../data/routes'
 import { CAT_COLORS } from '../../types'
-import type { Place } from '../../types'
+import type { Place, Route } from '../../types'
 import {
   findPlace,
   placeColor,
   sheetOffset,
   routeInfoNode,
+  routeLabelPoint,
   territoryInfoNode,
   visiblePlaces,
 } from './shared'
@@ -40,6 +42,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
   const mapRef = useRef<maplibregl.Map | null>(null)
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const rafRef = useRef(0)
+  const routesByIdRef = useRef(new Map<string, Route>())
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
@@ -105,6 +108,8 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         },
       })
 
+      // A shared ?place= link opens centered; nudge it above the phone bottom sheet.
+      if (start) map.easeTo({ center: [start.lng, start.lat], offset: [0, -sheetOffset()], duration: 0 })
       mapRef.current = map
       setReady(true)
     })
@@ -169,25 +174,35 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       disposed = true
       map.off('moveend', schedule)
     }
-  }, [ready, era, selected?.id, onSelect])
+  }, [ready, era, selected?.id])
 
   useEffect(() => {
     const map = mapRef.current
     if (!ready || !map) return
     const source = map.getSource(ROUTES_SOURCE) as maplibregl.GeoJSONSource
     if (!source) return
-    const features: GeoJSON.Feature[] = []
-    for (const cat of activeCats) {
-      const color = CAT_COLORS[cat] ?? '#757575'
-      for (const r of ROUTES.filter((x) => x.cat === cat)) {
+    if (!activeCats.length) {
+      source.setData(fc([]))
+      return
+    }
+    let cancelled = false
+    loadRoutes().then((routes) => {
+      if (cancelled) return
+      const features: GeoJSON.Feature[] = []
+      for (const r of routes) {
+        routesByIdRef.current.set(r.id, r)
+        if (!activeCats.includes(r.cat)) continue
         features.push({
           type: 'Feature',
-          geometry: { type: 'LineString', coordinates: r.path },
-          properties: { color, 'route-id': r.id },
+          geometry: { type: 'MultiLineString', coordinates: r.paths },
+          properties: { color: CAT_COLORS[r.cat] ?? '#757575', 'route-id': r.id },
         })
       }
+      source.setData(fc(features))
+    })
+    return () => {
+      cancelled = true
     }
-    source.setData(fc(features))
   }, [ready, activeCats])
 
   useEffect(() => {
@@ -227,10 +242,10 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         popupRef.current?.remove()
         onSelect(p)
       } else if (layer === ROUTES_LAYER) {
-        const r = ROUTES.find((x) => x.id === f.properties?.['route-id'])
+        const r = routesByIdRef.current.get(f.properties?.['route-id'])
         if (!r) return
-        const mid = r.path[Math.floor(r.path.length / 2)]
-        showPopup(routeInfoNode(r), mid[0], mid[1])
+        const [lng, lat] = routeLabelPoint(r)
+        showPopup(routeInfoNode(r), lng, lat)
       } else if (layer === TERRITORIES_FILL || layer === TERRITORIES_LINE) {
         const t = TERRITORIES.find((x) => x.name === f.properties?.name)
         if (!t) return

@@ -32,6 +32,8 @@ function App() {
 
   const usage = MAP_PROVIDER === 'google' ? getUsage() : null
   const overLimit = usage ? isAtGoogleLoadLimit(usage) : false
+  // Search and the place panel need a map to fly to; hide them when it can't render.
+  const mapShown = MAP_AVAILABLE && !overLimit
 
   function toggleCat(cat: string) {
     setActiveCats((cats) =>
@@ -41,7 +43,7 @@ function App() {
 
   return (
     <div className={`app${selected ? ' has-selection' : ''}`}>
-      {MAP_AVAILABLE && !overLimit ? (
+      {mapShown ? (
         <MapView
           ref={mapRef}
           era={era}
@@ -90,16 +92,18 @@ function App() {
         onToggleCat={toggleCat}
       />
 
-      <div className="search-wrap">
-        <SearchBox
-          onPick={(place) => {
-            setSelected(place)
-            mapRef.current?.flyTo(place)
-          }}
-        />
-      </div>
+      {mapShown && (
+        <div className="search-wrap">
+          <SearchBox
+            onPick={(place) => {
+              setSelected(place)
+              mapRef.current?.flyTo(place)
+            }}
+          />
+        </div>
+      )}
 
-      {selected && MAP_AVAILABLE && (
+      {selected && mapShown && (
         <PlacePanel
           place={selected}
           onClose={() => {

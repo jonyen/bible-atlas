@@ -54,10 +54,15 @@ for (const a of ancient) {
   const { assoc, modern: m } = picked
   const [lng, lat] = m.lonlat.split(',').map(Number)
   const verses = a.verses || []
-  const names = Object.keys(a.translation_name_counts || {}).filter((n) => n !== a.friendly_id && n.toLowerCase() !== a.friendly_id.toLowerCase())
+  // Skip places OpenBible lists only from extra-biblical sources (no verses).
+  if (!verses.length) continue
+  // friendly_id numbers same-named places ("Jericho 1"); the number is not part of the name.
+  const name = a.friendly_id.replace(/ \d+$/, '')
+  const names = Object.keys(a.translation_name_counts || {}).filter((n) => n.toLowerCase() !== name.toLowerCase())
   places.push({
     id: a.id,
-    name: a.friendly_id,
+    name,
+    slug: a.url_slug,
     article: a.preceding_article || '',
     type: (a.types || ['place'])[0],
     lat: round(lat, 5),
@@ -69,8 +74,9 @@ for (const a of ancient) {
     verseCount: verses.length,
     first: verses[0]?.readable || '',
     books: booksFor(verses),
-    ot: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) <= 39) && !verses.some((v) => parseInt(v.sort.slice(0, 2), 10) > 39),
-    nt: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) > 39) && !verses.some((v) => parseInt(v.sort.slice(0, 2), 10) <= 39),
+    // Testaments the place appears in; a place named in both has both set.
+    ot: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) <= 39),
+    nt: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) > 39),
     refs: verses.slice(0, 10).map((v) => v.readable),
   })
 }
@@ -86,7 +92,7 @@ const ROUTE_CATS = [
   [65, 74, 'Judges', 'ot'],
   [75, 102, 'Kingdom of David & Solomon', 'ot'],
   [103, 151, 'Kings, Prophets & Exile', 'ot'],
-  [152, 197, 'Life of Jesus', 'nt'],
+  [152, 196, 'Life of Jesus', 'nt'],
   [197, 205, 'Acts & Paul', 'nt'],
 ]
 
@@ -115,16 +121,15 @@ for (const file of routeFiles) {
     .map((f) => f && f.geometry)
     .filter((g) => g && g.type === 'LineString' && g.coordinates?.length > 1)
   if (!lines.length) continue
-  const coords = lines
-    .map((g) => g.coordinates.map(([lng, lat]) => [round(lng, 4), round(lat, 4)]))
-    .flat()
+  // Keep each source line as its own segment; joining them draws false connectors.
+  const paths = lines.map((g) => g.coordinates.map(([lng, lat]) => [round(lng, 4), round(lat, 4)]))
   routes.push({
     id: file.split('/').pop().replace(/\.geojson$/, ''),
     num: parseInt(m[1], 10),
     name: base.replace(/^\d+[a-z]?\.\s*/, '').trim(),
     cat: c.cat,
     era: c.era,
-    path: coords,
+    paths,
   })
 }
 routes.sort((a, b) => a.num - b.num || a.id.localeCompare(b.id))
@@ -142,6 +147,6 @@ function round(n, d) {
 console.log('places:', places.length)
 console.log('routes:', routes.length)
 const cats = {}
-for (const [, , c] of ROUTE_CATS) cats[c] = (cats[c] || 0) + 1
+for (const r of routes) cats[r.cat] = (cats[r.cat] || 0) + 1
 console.log('route cats:', cats)
 console.log('output:', OUT)

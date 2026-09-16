@@ -65,10 +65,10 @@ export default function SearchBox({ onPick }: SearchBoxProps) {
                 <span className="r-name">
                   {p.article ? p.article + ' ' : ''}
                   {p.name}
-                  {p.alt.length && i === 0 ? '' : ''}
                 </span>
                 <span className="r-meta">
                   {p.type} · {p.verseCount} verse{p.verseCount === 1 ? '' : 's'}
+                  {p.modernName && p.modernName.toLowerCase() !== p.name.toLowerCase() && ` · ${p.modernName}`}
                 </span>
               </button>
             </li>

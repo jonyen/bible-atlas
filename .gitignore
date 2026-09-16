@@ -27,3 +27,4 @@ scripts/reference
 *.sw?
 .vercel
 .env*
+!.env.example

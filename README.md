@@ -1,6 +1,6 @@
 # Bible Atlas
 
-An interactive map of Bible geography. Browse ~1,300 identifiable places from
+An interactive map of Bible geography. Browse ~1,275 identifiable places from
 the OpenBible.info geocoding dataset, filter by testament, overlay the tribal
 allotments of Joshua 13–19, and trace 179 journey routes (UBS Bible Routes) for
 everything from Abram's journey to Paul's voyages.
@@ -29,6 +29,12 @@ backend is built in as a drop-in alternative.
    # edit .env.local and paste your key
    ```
 4. Run: `npm run dev`
+5. Test: `npm test`
+
+Before deploying with Google, protect the key in Google Cloud Console: restrict it to
+your domain (HTTP referrers) and set a daily quota on the Maps JavaScript API. The
+in-app load limit (`VITE_GOOGLE_LOAD_LIMIT`) counts per browser only, so it does not
+cap spend.
 
 Both providers expose the same search, filtering, tribal overlay and route
 layers. Switch anytime via the env var; no code changes needed.
@@ -44,6 +50,7 @@ Reference data lives in `scripts/reference/` (gitignored clones):
 git clone --depth 1 https://github.com/openbibleinfo/Bible-Geocoding-Data.git scripts/reference/openbible
 git clone --depth 1 https://github.com/ubsicap/ubs-open-license.git scripts/reference/ubs
 node scripts/prepare-data.mjs
+npm test
 ```
 
 Tribal territory polygons are hand-curated approximations in

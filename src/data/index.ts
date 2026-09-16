@@ -1,11 +1,8 @@
-import type { Place, Route, Territory } from '../types'
+import type { Place, Territory } from '../types'
 import placesData from './places.json'
-import routesData from './routes.json'
 import territoriesData from './territories.json'
 
 export const PLACES = placesData as unknown as Place[]
-export const ROUTES = routesData.routes as unknown as Route[]
-export const ROUTE_CATEGORIES = routesData.categories as string[]
 export const TERRITORIES = territoriesData as unknown as Territory[]
 
 export const byId = new Map(PLACES.map((p) => [p.id, p]))
@@ -33,7 +30,7 @@ export function searchPlaces(query: string, limit = 10): Place[] {
     } else if (alts.some((a) => a === q || a.startsWith(q))) {
       hit = true
       score = 40
-    } else if (mod && (mod.toLowerCase().startsWith(q) || mod.toLowerCase().includes(q))) {
+    } else if (mod.includes(q)) {
       hit = true
       score = 25
     }

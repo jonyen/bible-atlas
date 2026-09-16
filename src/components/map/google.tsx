@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { ROUTES, TERRITORIES } from '../../data'
+import { TERRITORIES } from '../../data'
+import { loadRoutes } from '../../data/routes'
 import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
 import type { Place } from '../../types'
@@ -7,6 +8,7 @@ import {
   placeColor,
   sheetOffset,
   routeInfoNode,
+  routeLabelPoint,
   territoryInfoNode,
   visiblePlaces,
 } from './shared'
@@ -38,7 +40,12 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const infoRef = useRef<google.maps.InfoWindow | null>(null)
-  const markersRef = useRef(new Map<string, google.maps.Marker>())
+  const markersRef = useRef(new Map<string, { marker: google.maps.Marker; look: string }>())
+  // Marker click listeners outlive renders, so they read the latest callback from here.
+  const onSelectRef = useRef(onSelect)
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  }, [onSelect])
   const rafRef = useRef(0)
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
@@ -62,10 +69,15 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         { featureType: 'transit', stylers: [{ visibility: 'off' }] },
       ],
     })
+    // A shared ?place= link opens centered; nudge it above the phone bottom sheet.
+    if (start) map.panBy(0, sheetOffset())
     mapRef.current = map
     recordLoad()
     setReady(true)
+    const markers = markersRef.current
     return () => {
+      for (const { marker } of markers.values()) marker.setMap(null)
+      markers.clear()
       mapRef.current = null
     }
   }, [])
@@ -92,25 +104,42 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       if (!bounds) return
       const b = bounds.toJSON()
       const list = visiblePlaces(b, era)
+      const markers = markersRef.current
 
-      for (const [, m] of markersRef.current) m.setMap(null)
-      markersRef.current.clear()
+      // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
+      const keep = new Set(list.map((p) => p.id))
+      for (const [id, { marker }] of markers) {
+        if (!keep.has(id)) {
+          marker.setMap(null)
+          markers.delete(id)
+        }
+      }
 
       for (const p of list) {
         const isSel = selected?.id === p.id
-        const icon = dotIcon(placeColor(p, era), p.high, isSel)
+        const color = placeColor(p, era)
+        const look = `${color}|${p.high}|${isSel}`
+        const existing = markers.get(p.id)
+        if (existing) {
+          if (existing.look !== look) {
+            existing.marker.setIcon(dotIcon(color, p.high, isSel))
+            existing.marker.setZIndex(isSel ? 1000 : 1)
+            existing.look = look
+          }
+          continue
+        }
         const marker = new google.maps.Marker({
           position: { lat: p.lat, lng: p.lng },
           map,
-          icon,
+          icon: dotIcon(color, p.high, isSel),
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
           zIndex: isSel ? 1000 : 1,
         })
         marker.addListener('click', () => {
           infoRef.current?.close()
-          onSelect(p)
+          onSelectRef.current(p)
         })
-        markersRef.current.set(p.id, marker)
+        markers.set(p.id, { marker, look })
       }
     }
 
@@ -121,40 +150,47 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       })
     }
 
-    const markers = markersRef.current
     const bh = map.addListener('idle', schedule)
     schedule()
     return () => {
       disposed = true
       google.maps.event.removeListener(bh)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      for (const [, m] of markers) m.setMap(null)
-      markers.clear()
+      rafRef.current = 0
     }
-  }, [ready, era, selected?.id, onSelect])
+  }, [ready, era, selected?.id])
 
   useEffect(() => {
     const map = mapRef.current
     if (!ready || !map) return
     const polylines: google.maps.Polyline[] = []
-    for (const cat of activeCats) {
-      const hex = CAT_COLORS[cat] ?? '#757575'
-      for (const r of ROUTES.filter((x) => x.cat === cat)) {
-        const poly = new google.maps.Polyline({
-          path: r.path.map(([lng, lat]) => ({ lat, lng })),
-          strokeColor: hex,
-          strokeOpacity: 0.85,
-          strokeWeight: 3.2,
-          map,
-        })
-        poly.addListener('click', () => {
-          const mid = r.path[Math.floor(r.path.length / 2)]
-          showInfo(routeInfoNode(r), mid[1], mid[0])
-        })
-        polylines.push(poly)
-      }
+    let cancelled = false
+    if (activeCats.length) {
+      loadRoutes().then((routes) => {
+        if (cancelled) return
+        for (const r of routes) {
+          if (!activeCats.includes(r.cat)) continue
+          for (const seg of r.paths) {
+            const poly = new google.maps.Polyline({
+              path: seg.map(([lng, lat]) => ({ lat, lng })),
+              strokeColor: CAT_COLORS[r.cat] ?? '#757575',
+              strokeOpacity: 0.85,
+              strokeWeight: 3.2,
+              map,
+            })
+            poly.addListener('click', () => {
+              const [lng, lat] = routeLabelPoint(r)
+              showInfo(routeInfoNode(r), lat, lng)
+            })
+            polylines.push(poly)
+          }
+        }
+      })
     }
-    return () => polylines.forEach((p) => p.setMap(null))
+    return () => {
+      cancelled = true
+      polylines.forEach((p) => p.setMap(null))
+    }
   }, [ready, activeCats])
 
   useEffect(() => {

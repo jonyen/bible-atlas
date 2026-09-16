@@ -13,14 +13,12 @@ function bgUrl(ref: string): string {
 }
 
 function openbibleUrl(place: Place): string {
-  return `https://www.openbible.info/geo/ancient/${place.id}/${place.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+  return `https://www.openbible.info/geo/ancient/${place.id}/${place.slug}`
 }
 
 export default function PlacePanel({ place, onClose }: PlacePanelProps) {
   const [allBooks, setAllBooks] = useState(false)
-  const otOnly = place.ot && !place.nt
-  const ntOnly = place.nt && !place.ot
-  const testaments = otOnly ? 'Old Testament' : ntOnly ? 'New Testament' : 'Old & New Testament'
+  const testaments = place.ot && place.nt ? 'Old & New Testament' : place.nt ? 'New Testament' : 'Old Testament'
   const books = allBooks ? place.books : place.books.slice(0, BOOKS_SHOWN)
   const hiddenBooks = place.books.length - books.length
   const moreVerses = place.verseCount - place.refs.length

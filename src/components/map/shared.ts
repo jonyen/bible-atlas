@@ -1,6 +1,5 @@
 import { PLACES, byId } from '../../data'
-import type { Place, Territory } from '../../types'
-import type { Route } from '../../types'
+import type { Place, Route, Territory } from '../../types'
 import {
   BOTH_COLOR,
   MAX_MARKERS,
@@ -14,13 +13,12 @@ export type MapEra = 'all' | 'ot' | 'nt'
 export function placeColor(p: Place, era: MapEra): string {
   if (era === 'ot') return OT_COLOR
   if (era === 'nt') return NT_COLOR
-  return p.nt && !p.ot ? NT_COLOR : p.ot && !p.nt ? OT_COLOR : BOTH_COLOR
+  return p.ot && p.nt ? BOTH_COLOR : p.nt ? NT_COLOR : OT_COLOR
 }
 
 export function eraMatch(p: Place, era: MapEra): boolean {
   if (era === 'all') return true
-  if (era === 'ot') return p.ot || (!p.ot && !p.nt)
-  return p.nt || (!p.ot && !p.nt)
+  return era === 'ot' ? p.ot : p.nt
 }
 
 /** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. */
@@ -45,6 +43,12 @@ export function sheetOffset(): number {
 
 export function findPlace(id: string): Place | undefined {
   return byId.get(id)
+}
+
+/** [lng, lat] to anchor a route's popup: the middle of its longest segment. */
+export function routeLabelPoint(r: Route): [number, number] {
+  const seg = r.paths.reduce((a, b) => (b.length > a.length ? b : a))
+  return seg[Math.floor(seg.length / 2)]
 }
 
 export function routeInfoNode(r: Route): HTMLDivElement {
