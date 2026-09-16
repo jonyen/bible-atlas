@@ -81,8 +81,8 @@ describe('bookBounds', () => {
 
   it('pads a single place so the map does not zoom all the way in', () => {
     const b = bookBounds(toMapBook('John', [{ id: cana.id, count: 4, first: 43002001, refs: [] }]))!
-    expect(b.north - b.south).toBeGreaterThanOrEqual(0.3)
-    expect(b.east - b.west).toBeGreaterThanOrEqual(0.3)
+    expect(b.north - b.south).toBeGreaterThanOrEqual(0.3 - 1e-9)
+    expect(b.east - b.west).toBeGreaterThanOrEqual(0.3 - 1e-9)
     expect(b.south).toBeLessThan(cana.lat)
     expect(b.north).toBeGreaterThan(cana.lat)
   })

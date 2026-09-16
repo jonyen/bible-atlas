@@ -63,13 +63,7 @@ export function bookBounds(book: MapBook): ViewportBounds | null {
   if (south > north) return null
   const latGrow = Math.max(0, MIN_SPAN - (north - south)) / 2
   const lngGrow = Math.max(0, MIN_SPAN - (east - west)) / 2
-  const EPSILON = 1e-10
-  return {
-    south: south - latGrow - EPSILON,
-    north: north + latGrow + EPSILON,
-    west: west - lngGrow - EPSILON,
-    east: east + lngGrow + EPSILON
-  }
+  return { south: south - latGrow, north: north + latGrow, west: west - lngGrow, east: east + lngGrow }
 }
 
 /** Pixel padding for fitting a book, clear of the layers panel on desktop. */
