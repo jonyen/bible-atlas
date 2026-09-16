@@ -4,7 +4,11 @@ import { loadRoutes } from '../../data/routes'
 import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
 import type { Place } from '../../types'
+import type { MapBook } from '../../data/books'
 import {
+  bookBounds,
+  fitPadding,
+  markerStyle,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -14,8 +18,10 @@ import {
 } from './shared'
 import type { MapViewHandle, MapViewProps } from './types'
 
-function dotIcon(color: string, strong: boolean, selected = false): google.maps.Icon {
-  const r = selected ? 12 : strong ? 7 : 5
+const RADII = [5, 7, 9] as const
+
+function dotIcon(color: string, tier: 0 | 1 | 2, strong: boolean, selected = false): google.maps.Icon {
+  const r = selected ? 12 : RADII[tier]
   const dot = selected ? 6.5 : r * 0.82
   const ring = selected
     ? `<circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="none" stroke="${color}" stroke-width="3"/>`
@@ -29,12 +35,17 @@ function dotIcon(color: string, strong: boolean, selected = false): google.maps.
   }
 }
 
+function fitGoogle(map: google.maps.Map, book: MapBook) {
+  const b = bookBounds(book)
+  if (b) map.fitBounds(b, fitPadding())
+}
+
 /**
  * Google Maps backend. Renders markers (viewport-culled), route polylines and
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, showTerritories, activeCats, selected, onSelect },
+  { era, showTerritories, activeCats, selected, book, onSelect },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -50,6 +61,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
+  const pendingFitRef = useRef<MapBook | null>(null)
 
   useEffect(() => {
     if (!elRef.current) return
@@ -74,6 +86,10 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     mapRef.current = map
     recordLoad()
     setReady(true)
+    if (pendingFitRef.current) {
+      fitGoogle(map, pendingFitRef.current)
+      pendingFitRef.current = null
+    }
     const markers = markersRef.current
     return () => {
       for (const { marker } of markers.values()) marker.setMap(null)
@@ -103,7 +119,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       const bounds = map.getBounds()
       if (!bounds) return
       const b = bounds.toJSON()
-      const list = visiblePlaces(b, era)
+      const list = visiblePlaces(b, era, book)
       const markers = markersRef.current
 
       // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
@@ -118,12 +134,13 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       for (const p of list) {
         const isSel = selected?.id === p.id
         const color = placeColor(p, era)
-        const look = `${color}|${p.high}|${isSel}`
+        const { tier, strong } = markerStyle(p, book)
+        const look = `${color}|${tier}|${strong}|${isSel}`
         const existing = markers.get(p.id)
         if (existing) {
           if (existing.look !== look) {
-            existing.marker.setIcon(dotIcon(color, p.high, isSel))
-            existing.marker.setZIndex(isSel ? 1000 : 1)
+            existing.marker.setIcon(dotIcon(color, tier, strong, isSel))
+            existing.marker.setZIndex(isSel ? 1000 : tier + 1)
             existing.look = look
           }
           continue
@@ -131,9 +148,9 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const marker = new google.maps.Marker({
           position: { lat: p.lat, lng: p.lng },
           map,
-          icon: dotIcon(color, p.high, isSel),
+          icon: dotIcon(color, tier, strong, isSel),
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
-          zIndex: isSel ? 1000 : 1,
+          zIndex: isSel ? 1000 : tier + 1,
         })
         marker.addListener('click', () => {
           infoRef.current?.close()
@@ -158,7 +175,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = 0
     }
-  }, [ready, era, selected?.id])
+  }, [ready, era, selected?.id, book])
 
   useEffect(() => {
     const map = mapRef.current
@@ -243,6 +260,11 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       },
       clearSelection() {
         infoRef.current?.close()
+      },
+      fitBook(book: MapBook) {
+        const map = mapRef.current
+        if (map) fitGoogle(map, book)
+        else pendingFitRef.current = book
       },
     }),
     [onSelect],

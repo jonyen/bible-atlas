@@ -1,8 +1,10 @@
 import type { Era, Place } from '../../types'
+import type { MapBook } from '../../data/books'
 
 export interface MapViewHandle {
   flyTo: (place: Place) => void
   clearSelection: () => void
+  fitBook: (book: MapBook) => void
 }
 
 export interface MapViewProps {
@@ -10,6 +12,7 @@ export interface MapViewProps {
   showTerritories: boolean
   activeCats: string[]
   selected: Place | null
+  book: MapBook | null
   onSelect: (place: Place | null) => void
 }
 

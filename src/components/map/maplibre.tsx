@@ -5,8 +5,12 @@ import { TERRITORIES } from '../../data'
 import { loadRoutes } from '../../data/routes'
 import { CAT_COLORS } from '../../types'
 import type { Place, Route } from '../../types'
+import type { MapBook } from '../../data/books'
 import {
+  bookBounds,
+  fitPadding,
   findPlace,
+  markerStyle,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -30,12 +34,19 @@ function fc(features: GeoJSON.Feature[]): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features }
 }
 
+const RADII = [3.5, 5.5, 7.5] as const
+
+function fitMapLibre(map: maplibregl.Map, book: MapBook) {
+  const b = bookBounds(book)
+  if (b) map.fitBounds([[b.west, b.south], [b.east, b.north]], { padding: fitPadding(), maxZoom: 12 })
+}
+
 /**
  * MapLibre GL backend using free OpenFreeMap vector tiles. No API key needed.
  * Drop-in alternative to the Google backend - switch with VITE_MAP_PROVIDER=maplibre.
  */
 const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreView(
-  { era, showTerritories, activeCats, selected, onSelect },
+  { era, showTerritories, activeCats, selected, book, onSelect },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -46,6 +57,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
+  const pendingFitRef = useRef<MapBook | null>(null)
 
   useEffect(() => {
     if (!elRef.current) return
@@ -70,7 +82,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         source: PLACES_SOURCE,
         paint: {
           'circle-color': ['get', 'color'],
-          'circle-radius': ['case', ['==', ['get', 'sel'], 1], 8, ['==', ['get', 'strong'], 1], 5.5, 3.5],
+          'circle-radius': ['case', ['==', ['get', 'sel'], 1], 8, ['get', 'r']],
           'circle-opacity': ['get', 'op'],
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['case', ['==', ['get', 'sel'], 1], 2.5, 0.8],
@@ -112,6 +124,10 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       if (start) map.easeTo({ center: [start.lng, start.lat], offset: [0, -sheetOffset()], duration: 0 })
       mapRef.current = map
       setReady(true)
+      if (pendingFitRef.current) {
+        fitMapLibre(map, pendingFitRef.current)
+        pendingFitRef.current = null
+      }
     })
     return () => {
       mapRef.current = null
@@ -141,22 +157,27 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       const list = visiblePlaces(
         { south: b.getSouth(), north: b.getNorth(), west: b.getWest(), east: b.getEast() },
         era,
+        book,
       )
       const source = map.getSource(PLACES_SOURCE) as maplibregl.GeoJSONSource
       if (!source) return
       source.setData(
         fc(
-          list.map((p) => ({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-            properties: {
-              'place-id': p.id,
-              color: placeColor(p, era),
-              op: p.high || selected?.id === p.id ? 0.95 : 0.55,
-              strong: p.high ? 1 : 0,
-              sel: selected?.id === p.id ? 1 : 0,
-            },
-          })),
+          list.map((p) => {
+            const { tier, strong } = markerStyle(p, book)
+            const sel = selected?.id === p.id
+            return {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+              properties: {
+                'place-id': p.id,
+                color: placeColor(p, era),
+                op: strong || sel ? 0.95 : 0.55,
+                r: RADII[tier],
+                sel: sel ? 1 : 0,
+              },
+            }
+          }),
         ),
       )
     }
@@ -174,7 +195,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       disposed = true
       map.off('moveend', schedule)
     }
-  }, [ready, era, selected?.id])
+  }, [ready, era, selected?.id, book])
 
   useEffect(() => {
     const map = mapRef.current
@@ -280,6 +301,11 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       },
       clearSelection() {
         popupRef.current?.remove()
+      },
+      fitBook(book: MapBook) {
+        const map = mapRef.current
+        if (map) fitMapLibre(map, book)
+        else pendingFitRef.current = book
       },
     }),
     [onSelect],

@@ -50,6 +50,7 @@ function App() {
           showTerritories={showTerritories}
           activeCats={activeCats}
           selected={selected}
+          book={null}
           onSelect={setSelected}
         />
       ) : overLimit ? (
