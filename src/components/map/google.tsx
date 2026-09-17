@@ -149,7 +149,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       if (!bounds) return
       const b = bounds.toJSON()
       const list = visiblePlaces(b, era, book, selected?.id ?? null, journey)
-      const labels = labelIds(list, journey)
+      const labels = labelIds(list, journey, selected?.id ?? null)
       const markers = markersRef.current
 
       // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
@@ -165,7 +165,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const isSel = selected?.id === p.id
         const color = placeColor(p, era)
         const { tier, strong } = markerStyle(p, book)
-        const fade = journeyFade(p.id, journey)
+        const fade = journeyFade(p.id, journey, selected?.id ?? null)
         // Only the places at the cursor are named, and only a handful of them.
         const current = labels.has(p.id)
         const look = `${color}|${tier}|${strong}|${isSel}|${fade}|${current}`

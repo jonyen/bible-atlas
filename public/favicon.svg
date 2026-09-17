@@ -1,14 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Bible Atlas">
   <!--
-    Two rivers with a marked place between them: the Tigris and the Euphrates,
-    the geography the atlas opens on. Ink, parchment and the app's accent, with
-    heavy strokes and a large centre so it still reads at 16px in a tab strip.
+    An atlas: an open book with a place marked on the page. Heavy shapes and a
+    single accent dot, so it still reads at 16px in a tab strip.
   -->
   <rect width="64" height="64" rx="14" fill="#2a2620"/>
-  <g fill="none" stroke="#4f95bf" stroke-width="7" stroke-linecap="round">
-    <path d="M17 6c-2 12 5 15 3 24s-7 13-5 28"/>
-    <path d="M47 6c2 12-5 15-3 24s7 13 5 28"/>
-  </g>
-  <circle cx="32" cy="33" r="15" fill="#fffdf8"/>
-  <circle cx="32" cy="33" r="8" fill="#8a5a21"/>
+  <path d="M10 18c7-4 14-4 21 0v30c-7-4-14-4-21 0z" fill="#f4ead6"/>
+  <path d="M54 18c-7-4-14-4-21 0v30c7-4 14-4 21 0z" fill="#e5d7bd"/>
+  <path d="M32 18v30" stroke="#2a2620" stroke-width="2.5"/>
+  <circle cx="21" cy="31" r="4" fill="#8a5a21"/>
 </svg>

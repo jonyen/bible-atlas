@@ -128,6 +128,11 @@ describe('journeyFade', () => {
   it('leaves every place at full strength without a journey', () => {
     expect(journeyFade(jerusalem.id, null)).toBe(1)
   })
+
+  it('keeps a place found by search at full strength, wherever the story is', () => {
+    // Searching for the Valley of Elah in Genesis should not hand back a faded dot.
+    expect(journeyFade(jerusalem.id, journey, jerusalem.id)).toBe(1)
+  })
 })
 
 describe('cameraAt', () => {
@@ -236,5 +241,19 @@ describe('labelIds', () => {
     const journey = { shown: new Set(['a']), current: new Set(['a']) }
     const ids = labelIds([place('a', 10, 1), place('b', 1000, 99)], journey)
     expect(ids.has('b')).toBe(false)
+  })
+
+  it('always names the selected place, even ahead of the story', () => {
+    const journey = { shown: new Set(['a']), current: new Set(['a']) }
+    const ids = labelIds([place('a', 10, 1), place('b', 1000, 99)], journey, 'b')
+    expect(ids.has('b')).toBe(true)
+  })
+
+  it('keeps the selected place when the cap is already full', () => {
+    const list = Array.from({ length: 40 }, (_, i) => place(`p${i}`, i * 10, i))
+    const journey = { shown: new Set(list.map((p) => p.id)), current: new Set(list.map((p) => p.id)) }
+    const ids = labelIds(list, journey, 'p0')
+    expect(ids.has('p0')).toBe(true)
+    expect(ids.size).toBeLessThanOrEqual(MAX_LABELS + 1)
   })
 })

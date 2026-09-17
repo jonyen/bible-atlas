@@ -127,6 +127,20 @@ function App() {
     // glidedRef keeps the opening move to once, so the cursor deps are safe here.
   }, [follow, journey, mapReady, currentPlace, position.axis, cursor])
 
+  // A place the reader searched for, or clicked, that the story has not reached.
+  const selectedKey = selected ? keys.get(selected.id)?.[position.axis] : undefined
+  const ahead =
+    journey && selected && selectedKey !== undefined && selectedKey > cursor
+      ? {
+          ref: selected.first,
+          onJump: () => {
+            const next = snapToStep(selectedKey, sequence.steps)
+            setPosition((p) => ({ ...p, cursor: next }))
+            saveSoon({ axis: position.axis, cursor: next })
+          },
+        }
+      : null
+
   function moveCursor(next: number) {
     // Moving the scrubber leaves the book behind, the other half of the trade.
     if (book) setBook(null)
@@ -273,6 +287,7 @@ function App() {
       {selected && mapShown && (
         <PlacePanel
           place={selected}
+          ahead={ahead}
           onClose={() => {
             setSelected(null)
             mapRef.current?.clearSelection()
@@ -288,7 +303,8 @@ function App() {
       <footer className="attribution">
         Map: {MAP_PROVIDER === 'maplibre' ? 'OpenFreeMap © OpenMapTiles · OpenStreetMap' : 'Google Maps'} ·
         Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · Name meanings:
-        STEPBible.org (CC BY 4.0) · Rivers: Natural Earth (public domain) · tribal
+        STEPBible.org (CC BY 4.0) · Verse text: World English Bible (public domain) · Rivers:
+        Natural Earth (public domain) · tribal
         boundaries curated from Joshua 13–19
         {usage && import.meta.env.DEV && (
           <span className="usage-badge" title="Billable map loads this month (Maps JavaScript API)">

@@ -56,9 +56,14 @@ export function markerStyle(p: Place, book: MapBook | null): { tier: 0 | 1 | 2; 
   return { tier: countTier(entry.count, book.max), strong: book.top.has(p.id) || p.high }
 }
 
-/** Opacity multiplier for a place: full at the cursor, faded once the story has moved on. */
-export function journeyFade(id: string, journey: MapJourney | null): number {
-  if (!journey) return 1
+/**
+ * Opacity multiplier for a place: full at the cursor, faded once the story has
+ * moved on. A selected place stays full whatever the scrubber says — searching
+ * for the Valley of Elah while the story sits in Genesis should not hand back a
+ * faded dot among hundreds of others.
+ */
+export function journeyFade(id: string, journey: MapJourney | null, selectedId: string | null = null): number {
+  if (!journey || id === selectedId) return 1
   return journey.current.has(id) ? 1 : PAST_FADE
 }
 
@@ -181,16 +186,25 @@ export function placeLabel(p: Place, alone: boolean): string {
  * most MAX_LABELS of them, best-attested first: an era arrives with hundreds
  * of places at once, and naming every one hides the map behind its own text.
  */
-export function labelIds(list: Place[], journey: MapJourney | null): Set<string> {
+export function labelIds(
+  list: Place[],
+  journey: MapJourney | null,
+  selectedId: string | null = null,
+): Set<string> {
   if (!journey) return new Set()
   const current = list.filter((p) => journey.current.has(p.id))
-  if (current.length <= MAX_LABELS) return new Set(current.map((p) => p.id))
-  return new Set(
-    [...current]
-      .sort((a, b) => b.score * Math.min(b.verseCount, 50) - a.score * Math.min(a.verseCount, 50))
-      .slice(0, MAX_LABELS)
-      .map((p) => p.id),
-  )
+  const ids =
+    current.length <= MAX_LABELS
+      ? new Set(current.map((p) => p.id))
+      : new Set(
+          [...current]
+            .sort((a, b) => b.score * Math.min(b.verseCount, 50) - a.score * Math.min(a.verseCount, 50))
+            .slice(0, MAX_LABELS)
+            .map((p) => p.id),
+        )
+  // The selected place is named on top of the cap: it is what the reader asked for.
+  if (selectedId) ids.add(selectedId)
+  return ids
 }
 
 /** [lng, lat] to anchor a river's label: the middle of its longest reach. */

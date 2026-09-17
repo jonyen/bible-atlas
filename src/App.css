@@ -756,3 +756,32 @@ body,
   color: var(--ink);
   font-weight: 600;
 }
+
+/* Verse text under a reference (World English Bible, public domain). */
+.refs.quoted li {
+  margin-bottom: 8px;
+}
+
+.verse-text {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.verse-text mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* A place the scrubber has not reached yet, reached by search. */
+.ahead-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: #fbf4e9;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink);
+}

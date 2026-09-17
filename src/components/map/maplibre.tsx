@@ -250,7 +250,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         selected?.id ?? null,
         journey,
       )
-      const labels = labelIds(list, journey)
+      const labels = labelIds(list, journey, selected?.id ?? null)
       const source = map.getSource(PLACES_SOURCE) as maplibregl.GeoJSONSource
       if (!source) return
       source.setData(
@@ -258,7 +258,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           list.map((p) => {
             const { tier, strong } = markerStyle(p, book)
             const sel = selected?.id === p.id
-            const fade = journeyFade(p.id, journey)
+            const fade = journeyFade(p.id, journey, selected?.id ?? null)
             const named = labels.has(p.id)
             return {
               type: 'Feature',
