@@ -6,8 +6,6 @@ import type { BookPlace } from '../data/books'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './map/types'
 import BookSection from './BookSection'
 import { BASE_MAPS, type BaseMap } from './map/basemap'
-import Scrubber from './Scrubber'
-import type { Axis, Sequence } from '../lib/scrubber'
 import { RIVER_COLOR } from '../data/rivers'
 
 interface FilterPanelProps {
@@ -26,17 +24,6 @@ interface FilterPanelProps {
   bookError: boolean
   onBook: (name: string | null) => void
   onPickPlace: (place: Place) => void
-  axis: Axis
-  onAxis: (axis: Axis) => void
-  sequence: Sequence
-  cursor: number
-  onCursor: (cursor: number) => void
-  onCommitCursor: (cursor: number) => void
-  follow: boolean
-  onFollow: (follow: boolean) => void
-  cursorLabel: string
-  axisLoading: boolean
-  axisError: boolean
 }
 
 const isPhone = () => window.matchMedia('(max-width: 720px)').matches
@@ -58,17 +45,6 @@ export default function FilterPanel({
   bookError,
   onBook,
   onPickPlace,
-  axis,
-  onAxis,
-  sequence,
-  cursor,
-  onCursor,
-  onCommitCursor,
-  follow,
-  onFollow,
-  cursorLabel,
-  axisLoading,
-  axisError,
 }: FilterPanelProps) {
   const [open, setOpen] = useState(startsOpen)
 
@@ -102,21 +78,6 @@ export default function FilterPanel({
             }}
           />
 
-          {!book && (
-            <Scrubber
-              axis={axis}
-              onAxis={onAxis}
-              sequence={sequence}
-              cursor={cursor}
-              onCursor={onCursor}
-              onCommit={onCommitCursor}
-              follow={follow}
-              onFollow={onFollow}
-              label={cursorLabel}
-              loading={axisLoading}
-              error={axisError}
-            />
-          )}
 
           <section className="filters">
             <h2>Base map</h2>

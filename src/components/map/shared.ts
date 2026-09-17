@@ -137,19 +137,28 @@ export function bookBounds(book: MapBook): ViewportBounds | null {
   return { south: south - latGrow, north: north + latGrow, west: west - lngGrow, east: east + lngGrow }
 }
 
-/** Pixel padding for fitting a book, clear of the layers panel (bottom sheet on phone, side panel on desktop). */
+/** Height of the scrubber bar along the foot of the map, plus its margin. */
+const SCRUBBER_PX = 96
+
+/** Pixel padding for fitting a book, clear of the layers panel (bottom sheet on phone, side panel on desktop) and of the scrubber. */
 export function fitPadding(): { top: number; right: number; bottom: number; left: number } {
   const phone = window.matchMedia('(max-width: 720px)').matches
   if (phone) {
-    // .panel-left sits `bottom: 56px` with `max-height: 46vh`; clear it plus a small margin.
-    return { top: 80, right: 30, bottom: 56 + Math.round(window.innerHeight * 0.46) + 10, left: 30 }
+    // .panel-left sits above the scrubber with `max-height: 46vh`; clear both.
+    return {
+      top: 80,
+      right: 30,
+      bottom: SCRUBBER_PX + Math.round(window.innerHeight * 0.46) + 10,
+      left: 30,
+    }
   }
-  return { top: 80, right: 60, bottom: 50, left: 330 }
+  return { top: 80, right: 60, bottom: SCRUBBER_PX, left: 330 }
 }
 
-/** Vertical nudge that keeps a picked place above the mobile bottom sheet. */
+/** Vertical nudge that keeps a picked place above the mobile bottom sheet, and clear of the scrubber. */
 export function sheetOffset(): number {
-  return window.matchMedia('(max-width: 720px)').matches ? window.innerHeight * 0.22 : 0
+  const phone = window.matchMedia('(max-width: 720px)').matches
+  return phone ? window.innerHeight * 0.22 : SCRUBBER_PX / 2
 }
 
 export function findPlace(id: string): Place | undefined {

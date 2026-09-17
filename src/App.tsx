@@ -4,6 +4,7 @@ import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
 import type { BaseMap } from './components/map/basemap'
 import SearchBox from './components/SearchBox'
 import FilterPanel from './components/FilterPanel'
+import Scrubber from './components/Scrubber'
 import PlacePanel from './components/PlacePanel'
 import { byId } from './data'
 import { EDEN_RIVERS } from './data/rivers'
@@ -265,23 +266,28 @@ function App() {
         bookError={bookError}
         onBook={setBook}
         onPickPlace={pickPlace}
-        axis={position.axis}
-        onAxis={changeAxis}
-        sequence={sequence}
-        cursor={cursor}
-        onCursor={moveCursor}
-        onCommitCursor={commitCursor}
-        follow={follow}
-        onFollow={setFollow}
-        cursorLabel={label}
-        axisLoading={axisLoading}
-        axisError={bookError && position.axis !== 'canonical'}
       />
 
       {mapShown && (
         <div className="search-wrap">
           <SearchBox onPick={pickPlace} />
         </div>
+      )}
+
+      {mapShown && !book && (
+        <Scrubber
+          axis={position.axis}
+          onAxis={changeAxis}
+          sequence={sequence}
+          cursor={cursor}
+          onCursor={moveCursor}
+          onCommit={commitCursor}
+          follow={follow}
+          onFollow={setFollow}
+          label={label}
+          loading={axisLoading}
+          error={bookError && position.axis !== 'canonical'}
+        />
       )}
 
       {selected && mapShown && (
