@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
+import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { eraMatch, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
-import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './types'
+import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { BOTH_COLOR, MAX_LABELS, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
 
@@ -93,5 +94,166 @@ describe('bookBounds', () => {
     expect(b.east - b.west).toBeGreaterThanOrEqual(0.3 - 1e-9)
     expect(b.south).toBeLessThan(cana.lat)
     expect(b.north).toBeGreaterThan(cana.lat)
+  })
+})
+
+describe('visiblePlaces with a journey', () => {
+  const journey = { shown: new Set([cana.id, jerusalem.id]), current: new Set([cana.id]) }
+
+  it('shows only the places the scrubber has reached', () => {
+    const ids = visiblePlaces(WORLD, 'all', null, null, journey).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+  })
+
+  it('ignores the testament filter, since the journey already orders scripture', () => {
+    const ids = visiblePlaces(WORLD, 'nt', null, null, journey).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+  })
+
+  it('keeps showing a selected place the scrubber has not reached', () => {
+    const behind = { shown: new Set([cana.id]), current: new Set([cana.id]) }
+    const ids = visiblePlaces(WORLD, 'all', null, jerusalem.id, behind).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+  })
+})
+
+describe('journeyFade', () => {
+  const journey = { shown: new Set([cana.id, jerusalem.id]), current: new Set([cana.id]) }
+
+  it('fades places already passed and keeps the current one at full strength', () => {
+    expect(journeyFade(cana.id, journey)).toBe(1)
+    expect(journeyFade(jerusalem.id, journey)).toBeLessThan(1)
+  })
+
+  it('leaves every place at full strength without a journey', () => {
+    expect(journeyFade(jerusalem.id, null)).toBe(1)
+  })
+
+  it('keeps a place found by search at full strength, wherever the story is', () => {
+    // Searching for the Valley of Elah in Genesis should not hand back a faded dot.
+    expect(journeyFade(jerusalem.id, journey, jerusalem.id)).toBe(1)
+  })
+})
+
+describe('cameraAt', () => {
+  const from = { lat: 31.78, lng: 35.23 }
+  const to = { lat: 40.38, lng: 44.95 }
+
+  it('starts at the origin and lands exactly on the target', () => {
+    expect(cameraAt(from, to, 0)).toEqual(from)
+    expect(cameraAt(from, to, 1)).toEqual(to)
+  })
+
+  it('eases: the midpoint of the glide is the midpoint of the path', () => {
+    const mid = cameraAt(from, to, 0.5)
+    expect(mid.lat).toBeCloseTo((from.lat + to.lat) / 2, 6)
+    expect(mid.lng).toBeCloseTo((from.lng + to.lng) / 2, 6)
+  })
+
+  it('moves slowly at the start, so the glide reads as deliberate', () => {
+    const early = cameraAt(from, to, 0.1)
+    const linear = from.lat + (to.lat - from.lat) * 0.1
+    expect(early.lat).toBeLessThan(linear)
+  })
+
+  it('clamps past the end rather than overshooting', () => {
+    expect(cameraAt(from, to, 1.4)).toEqual(to)
+  })
+})
+
+describe('riverBounds', () => {
+  it('spans the Tigris and Euphrates from the highlands to the Gulf', () => {
+    const b = riverBounds(['tigris', 'euphrates'])!
+    expect(b.north).toBeGreaterThan(37)
+    expect(b.south).toBeLessThan(32)
+    expect(b.west).toBeLessThan(40)
+    expect(b.east).toBeGreaterThan(47)
+  })
+
+  it('returns null for rivers it does not know', () => {
+    expect(riverBounds(['pishon'])).toBeNull()
+  })
+})
+
+describe('riverLabelPoint', () => {
+  it('anchors the label in the middle of the river, not at a stray tributary', () => {
+    const river = RIVERS.find((r) => r.id === 'tigris')!
+    const [lng, lat] = riverLabelPoint(river)
+    const lats = river.paths.flat().map(([, y]) => y)
+    const lngs = river.paths.flat().map(([x]) => x)
+    expect(lat).toBeGreaterThanOrEqual(Math.min(...lats))
+    expect(lat).toBeLessThanOrEqual(Math.max(...lats))
+    expect(lng).toBeGreaterThanOrEqual(Math.min(...lngs))
+    expect(lng).toBeLessThanOrEqual(Math.max(...lngs))
+  })
+
+  it('picks a point on the longest segment', () => {
+    const river = RIVERS.find((r) => r.id === 'euphrates')!
+    const longest = river.paths.reduce((a, b) => (b.length > a.length ? b : a))
+    expect(longest).toContainEqual(riverLabelPoint(river))
+  })
+})
+
+describe('placeLabel', () => {
+  const eden = PLACES.find((p) => p.id === 'af3daeb')!
+
+  it('flags an uncertain site when it is the only place named', () => {
+    expect(placeLabel(eden, true)).toBe('Eden — site uncertain')
+  })
+
+  it('drops the caveat when other places are named too, to keep the map readable', () => {
+    expect(placeLabel(eden, false)).toBe('Eden')
+  })
+
+  it('leaves a confident place with its plain name', () => {
+    expect(placeLabel({ ...jerusalem, high: true }, true)).toBe('Jerusalem')
+  })
+
+  it('keeps the article a place is normally read with', () => {
+    expect(placeLabel({ ...jerusalem, high: true, article: 'the' }, true)).toBe('the Jerusalem')
+  })
+})
+
+describe('labelIds', () => {
+  const place = (id: string, score: number, verseCount: number) =>
+    ({ id, score, verseCount }) as Place
+
+  it('names nothing without a journey: the map is not walking the story', () => {
+    expect(labelIds([place('a', 1000, 10)], null).size).toBe(0)
+  })
+
+  it('names the place at the cursor', () => {
+    const journey = { shown: new Set(['a']), current: new Set(['a']) }
+    expect([...labelIds([place('a', 1000, 10)], journey)]).toEqual(['a'])
+  })
+
+  it('caps the names when a whole era arrives at once, keeping the best known places', () => {
+    const list = Array.from({ length: 40 }, (_, i) => place(`p${i}`, i * 10, i))
+    const journey = { shown: new Set(list.map((p) => p.id)), current: new Set(list.map((p) => p.id)) }
+    const ids = labelIds(list, journey)
+    expect(ids.size).toBe(MAX_LABELS)
+    // The most-attested places win the labels; the obscure ones stay bare dots.
+    expect(ids.has('p39')).toBe(true)
+    expect(ids.has('p0')).toBe(false)
+  })
+
+  it('never names a place the story has not reached', () => {
+    const journey = { shown: new Set(['a']), current: new Set(['a']) }
+    const ids = labelIds([place('a', 10, 1), place('b', 1000, 99)], journey)
+    expect(ids.has('b')).toBe(false)
+  })
+
+  it('always names the selected place, even ahead of the story', () => {
+    const journey = { shown: new Set(['a']), current: new Set(['a']) }
+    const ids = labelIds([place('a', 10, 1), place('b', 1000, 99)], journey, 'b')
+    expect(ids.has('b')).toBe(true)
+  })
+
+  it('keeps the selected place when the cap is already full', () => {
+    const list = Array.from({ length: 40 }, (_, i) => place(`p${i}`, i * 10, i))
+    const journey = { shown: new Set(list.map((p) => p.id)), current: new Set(list.map((p) => p.id)) }
+    const ids = labelIds(list, journey, 'p0')
+    expect(ids.has('p0')).toBe(true)
+    expect(ids.size).toBeLessThanOrEqual(MAX_LABELS + 1)
   })
 })

@@ -13,6 +13,8 @@ export interface Place {
   high: boolean
   verseCount: number
   first: string
+  /** Sort key (BBCCCVVV) of the first mention anywhere in scripture. */
+  firstKey: number
   books: string[]
   ot: boolean
   nt: boolean

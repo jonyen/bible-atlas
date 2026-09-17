@@ -142,6 +142,8 @@ for (const a of ancient) {
     high: assoc.score >= 500,
     verseCount: verses.length,
     first: verses[0]?.readable || '',
+    // Sort key (BBCCCVVV) of the first mention anywhere: the scrubber's canonical order.
+    firstKey: Math.min(...verses.map((v) => Number(v.sort))),
     books: booksFor(verses),
     // Testaments the place appears in; a place named in both has both set.
     ot: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) <= 39),

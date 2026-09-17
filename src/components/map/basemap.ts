@@ -10,9 +10,10 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
  */
 export type BaseMap = 'modern' | 'ancient'
 
+/** Terrain first: it is the default, and the atlas's own view of the land. */
 export const BASE_MAPS: { id: BaseMap; label: string }[] = [
-  { id: 'modern', label: 'Modern' },
   { id: 'ancient', label: 'Terrain only' },
+  { id: 'modern', label: 'Modern' },
 ]
 
 const GOOGLE_MODERN: google.maps.MapTypeStyle[] = [

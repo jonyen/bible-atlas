@@ -6,6 +6,7 @@ import type { BookPlace } from '../data/books'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './map/types'
 import BookSection from './BookSection'
 import { BASE_MAPS, type BaseMap } from './map/basemap'
+import { RIVER_COLOR } from '../data/rivers'
 
 interface FilterPanelProps {
   era: Era
@@ -14,6 +15,8 @@ interface FilterPanelProps {
   onBaseMap: (b: BaseMap) => void
   showTerritories: boolean
   onTerritories: (v: boolean) => void
+  showRivers: boolean
+  onRivers: (v: boolean) => void
   activeCats: string[]
   onToggleCat: (cat: string) => void
   book: string | null
@@ -33,6 +36,8 @@ export default function FilterPanel({
   onBaseMap,
   showTerritories,
   onTerritories,
+  showRivers,
+  onRivers,
   activeCats,
   onToggleCat,
   book,
@@ -72,6 +77,7 @@ export default function FilterPanel({
               onPickPlace(place)
             }}
           />
+
 
           <section className="filters">
             <h2>Base map</h2>
@@ -133,6 +139,25 @@ export default function FilterPanel({
             <p className="fine">Faded dots mark places whose location is uncertain.</p>
           </section>
           )}
+
+          <section className="filters">
+            <h2>Rivers</h2>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={showRivers}
+                onChange={(e) => onRivers(e.target.checked)}
+              />
+              <span>
+                <span className="swatch line" style={{ background: RIVER_COLOR }} aria-hidden />
+                Tigris, Euphrates, Jordan and Nile
+              </span>
+            </label>
+            <p className="fine">
+              Genesis 2 calls the Tigris Hiddekel and the Euphrates Perath. Click a river to see
+              what scripture does with it.
+            </p>
+          </section>
 
           <section className="filters">
             <h2>

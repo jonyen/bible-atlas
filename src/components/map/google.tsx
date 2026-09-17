@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { TERRITORIES } from '../../data'
+import { RIVERS, RIVER_COLOR } from '../../data/rivers'
 import { loadRoutes } from '../../data/routes'
 import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
@@ -7,9 +8,16 @@ import type { Place } from '../../types'
 import type { MapBook } from '../../data/books'
 import { googleStyles } from './basemap'
 import {
+  GLIDE_MS,
   bookBounds,
+  cameraAt,
   fitPadding,
+  journeyFade,
+  labelIds,
   markerStyle,
+  placeLabel,
+  riverInfoNode,
+  riverLabelPoint,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -21,13 +29,28 @@ import type { MapViewHandle, MapViewProps } from './types'
 
 const RADII = [5, 7, 9] as const
 
-function dotIcon(color: string, tier: 0 | 1 | 2, strong: boolean, selected = false): google.maps.Icon {
+function markerLabel(p: Place, alone: boolean): google.maps.MarkerLabel {
+  return { text: placeLabel(p, alone), color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
+}
+
+/** A 1x1 transparent PNG: a marker that is only its label. */
+const BLANK_PIXEL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+
+function dotIcon(
+  color: string,
+  tier: 0 | 1 | 2,
+  strong: boolean,
+  selected = false,
+  fade = 1,
+): google.maps.Icon {
   const r = selected ? 12 : RADII[tier]
   const dot = selected ? 6.5 : r * 0.82
   const ring = selected
     ? `<circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="none" stroke="${color}" stroke-width="3"/>`
     : ''
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}">${ring}<circle cx="${r}" cy="${r}" r="${dot}" fill="${color}" fill-opacity="${strong || selected ? 0.95 : 0.5}" stroke="#ffffff" stroke-width="${selected ? 2 : 1}"/></svg>`
+  const fill = (strong || selected ? 0.95 : 0.5) * fade
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}">${ring}<circle cx="${r}" cy="${r}" r="${dot}" fill="${color}" fill-opacity="${fill}" stroke="#ffffff" stroke-opacity="${fade}" stroke-width="${selected ? 2 : 1}"/></svg>`
   return {
     url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     size: new google.maps.Size(r * 2, r * 2),
@@ -46,7 +69,7 @@ function fitGoogle(map: google.maps.Map, book: MapBook) {
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, baseMap, showTerritories, activeCats, selected, book, onSelect, onReady },
+  { era, baseMap, showTerritories, showRivers, activeCats, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -63,6 +86,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     onReadyRef.current = onReady
   }, [onReady])
   const rafRef = useRef(0)
+  const glideRef = useRef(0)
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
@@ -124,7 +148,8 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       const bounds = map.getBounds()
       if (!bounds) return
       const b = bounds.toJSON()
-      const list = visiblePlaces(b, era, book, selected?.id ?? null)
+      const list = visiblePlaces(b, era, book, selected?.id ?? null, journey)
+      const labels = labelIds(list, journey, selected?.id ?? null)
       const markers = markersRef.current
 
       // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
@@ -140,11 +165,15 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const isSel = selected?.id === p.id
         const color = placeColor(p, era)
         const { tier, strong } = markerStyle(p, book)
-        const look = `${color}|${tier}|${strong}|${isSel}`
+        const fade = journeyFade(p.id, journey, selected?.id ?? null)
+        // Only the places at the cursor are named, and only a handful of them.
+        const current = labels.has(p.id)
+        const look = `${color}|${tier}|${strong}|${isSel}|${fade}|${current}`
         const existing = markers.get(p.id)
         if (existing) {
           if (existing.look !== look) {
-            existing.marker.setIcon(dotIcon(color, tier, strong, isSel))
+            existing.marker.setIcon(dotIcon(color, tier, strong, isSel, fade))
+            existing.marker.setLabel(current ? markerLabel(p, labels.size === 1) : null)
             existing.marker.setZIndex(isSel ? 1000 : tier + 1)
             existing.look = look
           }
@@ -153,7 +182,8 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const marker = new google.maps.Marker({
           position: { lat: p.lat, lng: p.lng },
           map,
-          icon: dotIcon(color, tier, strong, isSel),
+          icon: dotIcon(color, tier, strong, isSel, fade),
+          label: current ? markerLabel(p, labels.size === 1) : undefined,
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
           zIndex: isSel ? 1000 : tier + 1,
         })
@@ -180,7 +210,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = 0
     }
-  }, [ready, era, selected?.id, book])
+  }, [ready, era, selected?.id, book, journey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -214,6 +244,48 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       polylines.forEach((p) => p.setMap(null))
     }
   }, [ready, activeCats])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    if (!showRivers) return
+    const lines: google.maps.Polyline[] = []
+    const labels: google.maps.Marker[] = []
+    for (const river of RIVERS) {
+      const [lng, lat] = riverLabelPoint(river)
+      labels.push(
+        new google.maps.Marker({
+          position: { lat, lng },
+          map,
+          clickable: false,
+          // An empty icon leaves just the label: Google draws no text on a line.
+          icon: { url: BLANK_PIXEL, size: new google.maps.Size(1, 1) },
+          label: { text: river.name, color: RIVER_COLOR, fontSize: '12px', fontWeight: '600' },
+          zIndex: 0,
+        }),
+      )
+      for (const path of river.paths) {
+        const line = new google.maps.Polyline({
+          path: path.map(([lng, lat]: [number, number]) => ({ lat, lng })),
+          strokeColor: RIVER_COLOR,
+          strokeOpacity: 0.8,
+          strokeWeight: 2.2,
+          zIndex: 0,
+          map,
+        })
+        line.addListener('click', (e: google.maps.MapMouseEvent) => {
+          const lat = e.latLng?.lat() ?? path[0][1]
+          const lng = e.latLng?.lng() ?? path[0][0]
+          showInfo(riverInfoNode(river), lat, lng)
+        })
+        lines.push(line)
+      }
+    }
+    return () => {
+      lines.forEach((l) => l.setMap(null))
+      labels.forEach((l) => l.setMap(null))
+    }
+  }, [ready, showRivers])
 
   useEffect(() => {
     const map = mapRef.current
@@ -262,6 +334,29 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         map.panBy(0, sheetOffset())
         infoRef.current?.close()
         onSelect(place)
+      },
+      panToPlace(place: Place) {
+        mapRef.current?.panTo({ lat: place.lat, lng: place.lng })
+      },
+      glideToBounds(bounds) {
+        // Google's fitBounds has no duration of its own; it settles in one step.
+        mapRef.current?.fitBounds(bounds, fitPadding())
+      },
+      glideTo(place: Place) {
+        const map = mapRef.current
+        const start = map?.getCenter()
+        if (!map || !start) return
+        // panTo only animates over short hops, so drive the camera frame by frame.
+        const from = { lat: start.lat(), lng: start.lng() }
+        const to = { lat: place.lat, lng: place.lng }
+        const t0 = performance.now()
+        cancelAnimationFrame(glideRef.current)
+        const step = () => {
+          const t = (performance.now() - t0) / GLIDE_MS
+          map.setCenter(cameraAt(from, to, t))
+          if (t < 1) glideRef.current = requestAnimationFrame(step)
+        }
+        glideRef.current = requestAnimationFrame(step)
       },
       clearSelection() {
         infoRef.current?.close()

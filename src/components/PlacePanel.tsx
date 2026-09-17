@@ -1,12 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Place } from '../types'
 import type { BookPlace } from '../data/books'
+import { disputedNote } from '../data/disputed'
+import { loadVerses, verseKey, type Verses } from '../data/verses'
+import { imageCaption, loadImages, type PlaceImage, type PlaceImages } from '../data/images'
 import { verseLink } from '../lib/verseLink'
 
 interface PlacePanelProps {
   place: Place
   onClose: () => void
   inBook?: { name: string; entry: BookPlace } | null
+  /** Set when the scrubber has not reached this place yet, with a way to go there. */
+  ahead?: { ref: string; onJump: () => void } | null
 }
 
 const BOOKS_SHOWN = 6
@@ -30,12 +35,69 @@ function VerseRef({ refText }: { refText: string }) {
   )
 }
 
+/** The place's own name, picked out of the verse it appears in. */
+function Quoted({ text, place }: { text: string; place: Place }) {
+  const names = [place.name, ...place.alt].filter(Boolean)
+  const pattern = new RegExp(`\\b(${names.map(escapeRegExp).join('|')})\\b`, 'gi')
+  const parts = text.split(pattern)
+  return (
+    <>
+      {parts.map((part, i) =>
+        // split() with one capture group puts the matches at the odd indexes.
+        i % 2 === 1 ? <mark key={i}>{part}</mark> : <span key={i}>{part}</span>,
+      )}
+    </>
+  )
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** A reference with its text, when the text has loaded. */
+function RefLine({ refText, place, verses }: { refText: string; place: Place; verses: Verses | null }) {
+  const key = verseKey(refText)
+  const text = key === null ? undefined : verses?.[key]
+  return (
+    <li>
+      <VerseRef refText={refText} />
+      {text && (
+        <p className="verse-text">
+          <Quoted text={text} place={place} />
+        </p>
+      )}
+    </li>
+  )
+}
+
 function openbibleUrl(place: Place): string {
   return `https://www.openbible.info/geo/ancient/${place.id}/${place.slug}`
 }
 
-export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) {
+export default function PlacePanel({ place, onClose, inBook, ahead }: PlacePanelProps) {
   const [allBooks, setAllBooks] = useState(false)
+  const [verses, setVerses] = useState<Verses | null>(null)
+  const [images, setImages] = useState<PlaceImages | null>(null)
+  const disputed = disputedNote(place.id)
+
+  // Verse text is a quarter of a megabyte, so it arrives after the panel does;
+  // the references read fine on their own until it lands.
+  useEffect(() => {
+    let live = true
+    loadVerses().then(
+      (v) => live && setVerses(v),
+      () => {},
+    )
+    loadImages().then(
+      (i) => live && setImages(i),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [])
+
+  const image = images?.[place.id]
   const testaments = place.ot && place.nt ? 'Old & New Testament' : place.nt ? 'New Testament' : 'Old Testament'
   const books = allBooks ? place.books : place.books.slice(0, BOOKS_SHOWN)
   const hiddenBooks = place.books.length - books.length
@@ -87,10 +149,30 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
         <div>
           <dt>Location</dt>
           <dd title={`OpenBible.info confidence score ${place.score} of 1000`}>
-            {place.high ? 'Confident' : 'Uncertain'}
+            {place.high ? 'Confident' : `Uncertain (${place.score}/1000)`}
           </dd>
         </div>
       </dl>
+
+      {image && <PlacePhoto image={image} place={place} />}
+
+      {ahead && (
+        <p className="ahead-note">
+          The journey has not reached this place yet — it first appears in{' '}
+          <strong>{ahead.ref}</strong>.{' '}
+          <button type="button" className="text-btn" onClick={ahead.onJump}>
+            Take me there
+          </button>
+        </p>
+      )}
+
+      {!place.high && (
+        <p className="uncertain-note">
+          <strong>Where this sits on the map is a proposal, not a settled site.</strong>{' '}
+          {disputed ??
+            `OpenBible.info scores this identification ${place.score} out of 1000; the dot marks their best guess.`}
+        </p>
+      )}
 
       {place.books.length > 0 && (
         <p className="books">
@@ -112,7 +194,12 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
             In {inBook.name}
             <span className="count">{inBook.entry.count}</span>
           </h3>
-          <InBookRefs key={`${place.id}:${inBook.name}`} refs={inBook.entry.refs} />
+          <InBookRefs
+            key={`${place.id}:${inBook.name}`}
+            refs={inBook.entry.refs}
+            place={place}
+            verses={verses}
+          />
         </>
       )}
 
@@ -122,11 +209,9 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
             {inBook ? 'All Scripture' : 'Scripture references'}
             <span className="count">{place.verseCount}</span>
           </h3>
-          <ul className="refs">
+          <ul className="refs quoted">
             {place.refs.map((r) => (
-              <li key={r}>
-                <VerseRef refText={r} />
-              </li>
+              <RefLine key={r} refText={r} place={place} verses={verses} />
             ))}
           </ul>
         </>
@@ -141,16 +226,43 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
   )
 }
 
-function InBookRefs({ refs }: { refs: string[] }) {
+/**
+ * A photograph of the place, from Wikipedia. The caption says what the picture
+ * actually is whenever that is not simply the place — a modern site under
+ * another name, or somewhere a couple of kilometres away — and the credit line
+ * carries the licence the image is used under.
+ */
+function PlacePhoto({ image, place }: { image: PlaceImage; place: Place }) {
+  const caption = imageCaption(image, place)
+  return (
+    <figure className="place-photo">
+      <img
+        src={image.thumb}
+        alt={caption ? `${caption} (${place.name})` : place.name}
+        width={image.width}
+        height={image.height}
+        loading="lazy"
+      />
+      <figcaption>
+        {caption && <span className="photo-of">{caption}</span>}
+        <a href={image.page} target="_blank" rel="noreferrer">
+          Wikipedia
+        </a>
+        {image.artist && <span className="photo-credit"> · {image.artist}</span>}
+        <span className="photo-credit"> · {image.license}</span>
+      </figcaption>
+    </figure>
+  )
+}
+
+function InBookRefs({ refs, place, verses }: { refs: string[]; place: Place; verses: Verses | null }) {
   const [expanded, setExpanded] = useState(false)
   const collapsed = refs.length > IN_BOOK_COLLAPSE_OVER && !expanded
   return (
     <>
-      <ul className={`refs${collapsed ? ' collapsed' : ''}`}>
+      <ul className={`refs quoted${collapsed ? ' collapsed' : ''}`}>
         {refs.map((r) => (
-          <li key={r}>
-            <VerseRef refText={r} />
-          </li>
+          <RefLine key={r} refText={r} place={place} verses={verses} />
         ))}
       </ul>
       {collapsed && (
