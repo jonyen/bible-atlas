@@ -163,7 +163,8 @@ function App() {
 
       <footer className="attribution">
         Map: {MAP_PROVIDER === 'maplibre' ? 'OpenFreeMap © OpenMapTiles · OpenStreetMap' : 'Google Maps'} ·
-        Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · tribal
+        Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · Name meanings:
+        STEPBible.org (CC BY 4.0) · tribal
         boundaries curated from Joshua 13–19
         {usage && import.meta.env.DEV && (
           <span className="usage-badge" title="Billable map loads this month (Maps JavaScript API)">

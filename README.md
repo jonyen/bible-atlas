@@ -14,6 +14,7 @@ backend is built in as a drop-in alternative.
 - **Book view** — pick a book to map only its places, ranked by mentions or in story order, with that book's verses for each place
 - **Testament / timeline filter** — Old Testament, New Testament, or all
 - **Tribe boundaries** — simplified allotments of the twelve tribes (Josh. 13–19)
+- **Name meanings** — the traditional meaning of about three quarters of place names (Bethlehem: "house of bread")
 - **Scripture cross-references** — every verse where a place appears, linking to BibleGateway
 - **Travel routes** — 179 polylines grouped by narrative era (Patriarchs, Exodus, Conquest, Judges, Kingdom, Prophets, Jesus, Acts & Paul)
 
@@ -46,10 +47,16 @@ Reference data lives in `scripts/reference/` (gitignored clones):
 
 - [OpenBible.info Bible Geocoding Data](https://github.com/openbibleinfo/Bible-Geocoding-Data) (CC-BY-4.0)
 - [UBS Bible Routes](https://github.com/ubsicap/ubs-open-license) (CC BY-SA 4.0)
+- [STEPBible Data](https://github.com/STEPBible/STEPBible-Data) (CC BY 4.0), for name meanings: TIPNR proper names and the TBESH/TBESG lexicons
 
 ```
 git clone --depth 1 https://github.com/openbibleinfo/Bible-Geocoding-Data.git scripts/reference/openbible
 git clone --depth 1 https://github.com/ubsicap/ubs-open-license.git scripts/reference/ubs
+mkdir -p scripts/reference/stepbible && cd scripts/reference/stepbible
+curl -L -o TIPNR.txt "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/Proper%20Nouns/TIPNR%20-%20Translators%20Individualised%20Proper%20Names%20with%20all%20References%20-%20STEPBible.org%20CC%20BY.txt"
+curl -L -o TBESH.txt "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/Lexicons/TBESH%20-%20Translators%20Brief%20lexicon%20of%20Extended%20Strongs%20for%20Hebrew%20-%20STEPBible.org%20CC%20BY.txt"
+curl -L -o TBESG.txt "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/Lexicons/TBESG%20-%20Translators%20Brief%20lexicon%20of%20Extended%20Strongs%20for%20Greek%20-%20STEPBible.org%20CC%20BY.txt"
+cd ../../..
 node scripts/prepare-data.mjs
 npm test
 ```
@@ -61,4 +68,7 @@ Tribal territory polygons are hand-curated approximations in
 
 - Place data: OpenBible.info, CC-BY-4.0
 - Routes: UBS Bible Routes, CC BY-SA 4.0
+- Name meanings: STEPBible.org, Tyndale House Cambridge (CC BY 4.0). Extracted from TIPNR and
+  the TBESH/TBESG lexicons and matched to places by shared verses and spelling. These are
+  traditional glosses; some are uncertain or folk etymology.
 - Tribal boundaries: curated approximations, not exact

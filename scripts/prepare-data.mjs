@@ -31,6 +31,75 @@ function booksFor(verses) {
   return [...nums].sort((a, b) => a - b).map((n) => BOOKS[n - 1])
 }
 
+// ---- Name meanings (STEPBible, CC BY 4.0) ----
+// TIPNR lists every place name form with its disambiguated Strong's number and verses;
+// the TBESH/TBESG lexicons give each number's traditional name meaning.
+const STEP = join(REF, 'stepbible')
+const STEP_BOOKS = 'Gen Exo Lev Num Deu Jos Jdg Rut 1Sa 2Sa 1Ki 2Ki 1Ch 2Ch Ezr Neh Est Job Psa Pro Ecc Sng Isa Jer Lam Ezk Dan Hos Jol Amo Oba Jon Mic Nam Hab Zep Hag Zec Mal Mat Mrk Luk Jhn Act Rom 1Co 2Co Gal Eph Php Col 1Th 2Th 1Ti 2Ti Tit Phm Heb Jas 1Pe 2Pe 1Jn 2Jn 3Jn Jud Rev'.split(' ')
+
+// Verse sort key (BBCCCVVV) -> name forms naming a place in that verse.
+const nameFormsByVerse = new Map()
+// All record types: some place name forms sit under a person, e.g. Moab under Lot's son.
+{
+  for (const line of readFileSync(join(STEP, 'TIPNR.txt'), 'utf8').split('\n')) {
+    if (!/^– (Named|Greek|Spelled|Name combined)\t/.test(line)) continue
+    const [, , strongs = '', names = '', refs = ''] = line.split('\t')
+    // Names built from several words ("Leb-kamai" = H3820+H6965) have no single meaning.
+    if (strongs.includes('+')) continue
+    const form = {
+      strong: strongs.split('«')[0],
+      // "(Mount )Zion =ESV,NIV; Sion =KJV" -> Zion, Mount Zion, Sion; "Moab,Moabite" -> Moab, Moabite
+      names: names
+        .replace(/=[A-Z,]+/g, '')
+        .split(/[;,]/)
+        .flatMap((name) => [name.replace(/\([^)]*\)/g, ''), name.replace(/[()]/g, '')].map(nameKey)),
+    }
+    for (const ref of refs.split(';')) {
+      const m = /^(\w+)\.(\d+)\.(\d+)/.exec(ref.trim())
+      const book = m && STEP_BOOKS.indexOf(m[1]) + 1
+      if (!book) continue
+      const key = book * 1e6 + Number(m[2]) * 1e3 + Number(m[3])
+      if (!nameFormsByVerse.has(key)) nameFormsByVerse.set(key, [])
+      nameFormsByVerse.get(key).push(form)
+    }
+  }
+}
+
+// Strong's number -> meaning. Greek entries often only point at their Hebrew original.
+const meaningByStrong = new Map()
+const hebrewForGreek = new Map()
+for (const file of ['TBESH.txt', 'TBESG.txt']) {
+  for (const line of readFileSync(join(STEP, file), 'utf8').split('\n')) {
+    const cols = line.split('\t')
+    if (!/^[HG]\d{4}/.test(cols[0] ?? '')) continue
+    const [strong, relation = ''] = cols[1].split(/\s*=\s*/)
+    if (relation.startsWith('the Greek of')) hebrewForGreek.set(strong, cols[2])
+    const m = /(?:^|>|§ )[^<>"=§]{1,80}= "([^"<>]+)"/.exec(cols.slice(7).join('\t'))
+    if (m) meaningByStrong.set(strong, m[1].replace(/\s+/g, ' ').trim())
+  }
+}
+
+function nameKey(name) {
+  return name.toLowerCase().replace(/^(mount|mt)\.?\s+/, '').replace(/[^a-z]/g, '')
+}
+
+function meaningFor(verses, name) {
+  // Among name forms spelled like the place, the one sharing the most verses with it.
+  // Requiring the spelling keeps e.g. Leb-kamai from taking Babylon's meaning in the same verse.
+  const key = nameKey(name)
+  const votes = new Map()
+  for (const v of verses) {
+    for (const form of nameFormsByVerse.get(Number(v.sort)) ?? []) {
+      if (!form.names.includes(key)) continue
+      votes.set(form.strong, (votes.get(form.strong) ?? 0) + 1)
+    }
+  }
+  const strong = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0]
+  const meaning = strong && (meaningByStrong.get(strong) ?? meaningByStrong.get(hebrewForGreek.get(strong)))
+  // Some entries just repeat the name ("Ecbatana").
+  return meaning && nameKey(meaning) !== key ? meaning : ''
+}
+
 // ---- Places ----
 const ancient = readJsonl(join(REF, 'openbible', 'data', 'ancient.jsonl'))
 const modern = readJsonl(join(REF, 'openbible', 'data', 'modern.jsonl'))
@@ -78,6 +147,8 @@ for (const a of ancient) {
     ot: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) <= 39),
     nt: verses.some((v) => parseInt(v.sort.slice(0, 2), 10) > 39),
     refs: verses.slice(0, 10).map((v) => v.readable),
+    // Own name only: alt names include other translations' renderings ("Leb-kamai" lists "Babylonia").
+    meaning: meaningFor(verses, name) || undefined,
   })
 }
 places.sort((a, b) => (b.score * Math.min(b.verseCount, 50)) - (a.score * Math.min(a.verseCount, 50)))
@@ -168,6 +239,7 @@ function round(n, d) {
 }
 
 console.log('places:', places.length)
+console.log('places with meanings:', places.filter((p) => p.meaning).length)
 console.log('routes:', routes.length)
 console.log('books with places:', Object.values(books).filter((l) => l.length).length)
 const cats = {}

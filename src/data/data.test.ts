@@ -42,6 +42,39 @@ describe('place names', () => {
   })
 })
 
+describe('name meanings', () => {
+  const byName = (name: string) => PLACES.find((p) => p.name === name)!
+
+  it('gives the traditional meaning of a place name', () => {
+    expect(byName('Bethlehem').meaning).toBe('house of bread (food)')
+    expect(byName('Bethel').meaning).toBe('house of God')
+  })
+
+  it('uses the meaning of the name form, not its parent place', () => {
+    expect(byName('Zion').meaning).toBe('parched place')
+    expect(byName('Zion').meaning).not.toBe(byName('Jerusalem').meaning)
+  })
+
+  it('does not borrow a meaning from another name in the same verses', () => {
+    expect(byName('Leb-kamai').meaning).not.toBe(byName('Babylon').meaning)
+    expect(byName('City of David').meaning).toBeUndefined()
+  })
+
+  it('skips a "meaning" that only repeats the name', () => {
+    for (const p of PLACES) expect(p.meaning?.toLowerCase()).not.toBe(p.name.toLowerCase())
+  })
+
+  it('covers most places with clean text', () => {
+    const withMeaning = PLACES.filter((p) => p.meaning)
+    expect(withMeaning.length / PLACES.length).toBeGreaterThanOrEqual(0.6)
+    for (const p of withMeaning) {
+      expect(p.meaning!.trim()).toBe(p.meaning)
+      expect(p.meaning).not.toMatch(/[<>"]/)
+      expect(p.meaning!.length).toBeGreaterThan(0)
+    }
+  })
+})
+
 describe('searchPlaces', () => {
   it('matches by name prefix first', () => {
     expect(searchPlaces('jeric')[0].name).toBe('Jericho')

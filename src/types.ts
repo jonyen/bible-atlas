@@ -17,6 +17,8 @@ export interface Place {
   ot: boolean
   nt: boolean
   refs: string[]
+  /** Traditional meaning of the name, from STEPBible lexicons; not every place has one. */
+  meaning?: string
 }
 
 export interface Route {

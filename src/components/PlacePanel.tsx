@@ -10,6 +10,9 @@ interface PlacePanelProps {
 
 const BOOKS_SHOWN = 6
 
+const MEANING_NOTE =
+  'From STEPBible lexicons (Tyndale House, CC BY 4.0). Traditional glosses; some are uncertain.'
+
 function bgUrl(ref: string): string {
   return `https://www.biblegateway.com/passage/?search=${encodeURIComponent(ref)}&version=ESV`
 }
@@ -35,6 +38,15 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
           </h2>
           {place.alt.length > 0 && (
             <p className="also">also {place.alt.slice(0, 3).join(', ')}</p>
+          )}
+          {place.meaning && (
+            <p className="meaning">
+              Name meaning{' '}
+              <span className="meaning-note" title={MEANING_NOTE}>
+                (traditional)
+              </span>
+              : <q>{place.meaning}</q>
+            </p>
           )}
         </div>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">

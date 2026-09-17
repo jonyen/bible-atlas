@@ -513,6 +513,22 @@ body,
   color: var(--muted);
 }
 
+.meaning {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.meaning q {
+  font-style: italic;
+}
+
+.meaning-note {
+  color: var(--muted);
+  border-bottom: 1px dotted var(--muted);
+  cursor: help;
+}
+
 .text-btn {
   font: inherit;
   font-size: 0.8rem;
