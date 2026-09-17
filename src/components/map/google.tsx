@@ -5,6 +5,7 @@ import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
 import type { Place } from '../../types'
 import type { MapBook } from '../../data/books'
+import { googleStyles } from './basemap'
 import {
   bookBounds,
   fitPadding,
@@ -45,7 +46,7 @@ function fitGoogle(map: google.maps.Map, book: MapBook) {
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, showTerritories, activeCats, selected, book, onSelect, onReady },
+  { era, baseMap, showTerritories, activeCats, selected, book, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -65,6 +66,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
+  const baseRef = useRef(baseMap)
 
   useEffect(() => {
     if (!elRef.current) return
@@ -79,10 +81,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       mapTypeControlOptions: { position: google.maps.ControlPosition.INLINE_END_BLOCK_END },
       fullscreenControl: false,
       streetViewControl: false,
-      styles: [
-        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-      ],
+      styles: googleStyles(baseRef.current),
     })
     // A shared ?place= link opens centered; nudge it above the phone bottom sheet.
     if (start) map.panBy(0, sheetOffset())
@@ -97,6 +96,12 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       mapRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    map.setOptions({ styles: googleStyles(baseMap) })
+  }, [ready, baseMap])
 
   function showInfo(node: HTMLElement, lat: number, lng: number) {
     const map = mapRef.current

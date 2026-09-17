@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MapView, { type MapViewHandle } from './components/map'
 import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
+import type { BaseMap } from './components/map/basemap'
 import SearchBox from './components/SearchBox'
 import FilterPanel from './components/FilterPanel'
 import PlacePanel from './components/PlacePanel'
@@ -23,6 +24,7 @@ function bookFromUrl(): string | null {
 
 function App() {
   const [era, setEra] = useState<Era>('all')
+  const [baseMap, setBaseMap] = useState<BaseMap>('modern')
   const [showTerritories, setShowTerritories] = useState(false)
   const [activeCats, setActiveCats] = useState<string[]>([])
   const [selected, setSelected] = useState<Place | null>(placeFromUrl)
@@ -88,6 +90,7 @@ function App() {
         <MapView
           ref={mapRef}
           era={mapBook ? 'all' : era}
+          baseMap={baseMap}
           showTerritories={showTerritories}
           activeCats={activeCats}
           selected={selected}
@@ -129,6 +132,8 @@ function App() {
       <FilterPanel
         era={era}
         onEra={setEra}
+        baseMap={baseMap}
+        onBaseMap={setBaseMap}
         showTerritories={showTerritories}
         onTerritories={setShowTerritories}
         activeCats={activeCats}

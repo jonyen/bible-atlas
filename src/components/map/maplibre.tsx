@@ -6,6 +6,7 @@ import { loadRoutes } from '../../data/routes'
 import { CAT_COLORS } from '../../types'
 import type { Place, Route } from '../../types'
 import type { MapBook } from '../../data/books'
+import { applyMapLibreBaseMap } from './basemap'
 import {
   bookBounds,
   fitPadding,
@@ -46,7 +47,7 @@ function fitMapLibre(map: maplibregl.Map, book: MapBook) {
  * Drop-in alternative to the Google backend - switch with VITE_MAP_PROVIDER=maplibre.
  */
 const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreView(
-  { era, showTerritories, activeCats, selected, book, onSelect, onReady },
+  { era, baseMap, showTerritories, activeCats, selected, book, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -134,6 +135,13 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       map.remove()
     }
   }, [])
+
+  // Hide or restore the modern-infrastructure layers of the vector style.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    applyMapLibreBaseMap(map, baseMap)
+  }, [ready, baseMap])
 
   function showPopup(node: HTMLElement, lng: number, lat: number) {
     if (!mapRef.current) return

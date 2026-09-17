@@ -14,6 +14,7 @@ backend is built in as a drop-in alternative.
 
 - **Searchable places** — every identifiable ancient place, with variant spellings
 - **Book view** — pick a book to map only its places, ranked by mentions or in story order, with that book's verses for each place
+- **Base map switch** — the ordinary modern map, or terrain only: no roads, modern towns or national borders
 - **Testament / timeline filter** — Old Testament, New Testament, or all
 - **Tribe boundaries** — simplified allotments of the twelve tribes (Josh. 13–19)
 - **Name meanings** — the traditional meaning of about three quarters of place names (Bethlehem: "house of bread")

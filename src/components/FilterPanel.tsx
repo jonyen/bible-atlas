@@ -5,10 +5,13 @@ import { TERRITORIES } from '../data'
 import type { BookPlace } from '../data/books'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './map/types'
 import BookSection from './BookSection'
+import { BASE_MAPS, type BaseMap } from './map/basemap'
 
 interface FilterPanelProps {
   era: Era
   onEra: (e: Era) => void
+  baseMap: BaseMap
+  onBaseMap: (b: BaseMap) => void
   showTerritories: boolean
   onTerritories: (v: boolean) => void
   activeCats: string[]
@@ -26,6 +29,8 @@ const startsOpen = () => !isPhone()
 export default function FilterPanel({
   era,
   onEra,
+  baseMap,
+  onBaseMap,
   showTerritories,
   onTerritories,
   activeCats,
@@ -67,6 +72,27 @@ export default function FilterPanel({
               onPickPlace(place)
             }}
           />
+
+          <section className="filters">
+            <h2>Base map</h2>
+            <div className="segmented">
+              {BASE_MAPS.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={baseMap === b.id ? 'on' : ''}
+                  aria-pressed={baseMap === b.id}
+                  onClick={() => onBaseMap(b.id)}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+            <p className="fine">
+              Terrain only hides modern roads, towns and borders, leaving the
+              landscape, coastline and water.
+            </p>
+          </section>
 
           {!book && (
           <section className="filters">
