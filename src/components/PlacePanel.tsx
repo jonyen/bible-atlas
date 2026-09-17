@@ -3,6 +3,7 @@ import type { Place } from '../types'
 import type { BookPlace } from '../data/books'
 import { disputedNote } from '../data/disputed'
 import { loadVerses, verseKey, type Verses } from '../data/verses'
+import { imageCaption, loadImages, type PlaceImage, type PlaceImages } from '../data/images'
 import { verseLink } from '../lib/verseLink'
 
 interface PlacePanelProps {
@@ -76,6 +77,7 @@ function openbibleUrl(place: Place): string {
 export default function PlacePanel({ place, onClose, inBook, ahead }: PlacePanelProps) {
   const [allBooks, setAllBooks] = useState(false)
   const [verses, setVerses] = useState<Verses | null>(null)
+  const [images, setImages] = useState<PlaceImages | null>(null)
   const disputed = disputedNote(place.id)
 
   // Verse text is a quarter of a megabyte, so it arrives after the panel does;
@@ -86,10 +88,16 @@ export default function PlacePanel({ place, onClose, inBook, ahead }: PlacePanel
       (v) => live && setVerses(v),
       () => {},
     )
+    loadImages().then(
+      (i) => live && setImages(i),
+      () => {},
+    )
     return () => {
       live = false
     }
   }, [])
+
+  const image = images?.[place.id]
   const testaments = place.ot && place.nt ? 'Old & New Testament' : place.nt ? 'New Testament' : 'Old Testament'
   const books = allBooks ? place.books : place.books.slice(0, BOOKS_SHOWN)
   const hiddenBooks = place.books.length - books.length
@@ -145,6 +153,8 @@ export default function PlacePanel({ place, onClose, inBook, ahead }: PlacePanel
           </dd>
         </div>
       </dl>
+
+      {image && <PlacePhoto image={image} place={place} />}
 
       {ahead && (
         <p className="ahead-note">
@@ -213,6 +223,35 @@ export default function PlacePanel({ place, onClose, inBook, ahead }: PlacePanel
         </a>
       </footer>
     </section>
+  )
+}
+
+/**
+ * A photograph of the place, from Wikipedia. The caption says what the picture
+ * actually is whenever that is not simply the place — a modern site under
+ * another name, or somewhere a couple of kilometres away — and the credit line
+ * carries the licence the image is used under.
+ */
+function PlacePhoto({ image, place }: { image: PlaceImage; place: Place }) {
+  const caption = imageCaption(image, place)
+  return (
+    <figure className="place-photo">
+      <img
+        src={image.thumb}
+        alt={caption ? `${caption} (${place.name})` : place.name}
+        width={image.width}
+        height={image.height}
+        loading="lazy"
+      />
+      <figcaption>
+        {caption && <span className="photo-of">{caption}</span>}
+        <a href={image.page} target="_blank" rel="noreferrer">
+          Wikipedia
+        </a>
+        {image.artist && <span className="photo-credit"> · {image.artist}</span>}
+        <span className="photo-credit"> · {image.license}</span>
+      </figcaption>
+    </figure>
   )
 }
 

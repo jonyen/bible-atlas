@@ -6,6 +6,7 @@ import {
   axisKeys,
   canonicalKeys,
   eraOfStep,
+  eraSegments,
   firstStepInEra,
   buildSequence,
   loadPosition,
@@ -193,5 +194,39 @@ describe('stepBy', () => {
   test('steps from a cursor that sits between steps', () => {
     expect(stepBy(steps, 25, 1)).toBe(30)
     expect(stepBy(steps, 25, -1)).toBe(10)
+  })
+})
+
+describe('eraSegments', () => {
+  test('gives the era axis one segment per era, evenly spread', () => {
+    const segments = eraSegments(buildSequence(axisKeys(INDEX), 'eras'))
+    expect(segments).toHaveLength(11)
+    expect(segments[0].startPct).toBe(0)
+    expect(segments[segments.length - 1].endPct).toBe(100)
+  })
+
+  test('runs each segment from where its era starts to where the next one does', () => {
+    const segments = eraSegments(buildSequence(axisKeys(INDEX), 'canonical'))
+    for (const [i, segment] of segments.entries()) {
+      expect(segment.endPct).toBeGreaterThan(segment.startPct)
+      if (i > 0) expect(segment.startPct).toBe(segments[i - 1].endPct)
+    }
+  })
+
+  test('covers the whole track, so no part of the story is unlabelled', () => {
+    const segments = eraSegments(buildSequence(axisKeys(INDEX), 'canonical'))
+    expect(segments[0].startPct).toBe(0)
+    expect(segments[segments.length - 1].endPct).toBe(100)
+  })
+
+  test('names each segment with its era', () => {
+    const segments = eraSegments(buildSequence(axisKeys(INDEX), 'eras'))
+    expect(segments[0].label).toBe('Creation & Beginnings')
+    expect(segments[0].approxDate).toBe('before ~2100 BC')
+  })
+
+  test('has nothing to draw for a sequence with a single step', () => {
+    const single = { axis: 'canonical' as const, steps: [5], revealedAt: () => [], revealedThrough: () => [] }
+    expect(eraSegments(single)).toEqual([])
   })
 })

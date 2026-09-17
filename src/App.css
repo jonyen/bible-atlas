@@ -785,3 +785,35 @@ body,
   line-height: 1.5;
   color: var(--ink);
 }
+
+/* A photograph of the place, from Wikipedia. */
+.place-photo {
+  margin: 12px 0 0;
+}
+
+.place-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--panel-border);
+}
+
+.place-photo figcaption {
+  margin-top: 5px;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.place-photo .photo-of {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.place-photo .photo-credit {
+  color: var(--muted);
+}

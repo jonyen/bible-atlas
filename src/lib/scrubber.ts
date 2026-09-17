@@ -140,6 +140,46 @@ export function firstStepInEra(sequence: Sequence, era: number): number {
   return steps[steps.length - 1] ?? 0
 }
 
+export interface EraSegment {
+  era: number
+  label: string
+  approxDate: string
+  /** Where the era's stretch of the track begins and ends, 0–100. */
+  startPct: number
+  endPct: number
+}
+
+/**
+ * The eras laid out along the track, so a reader can see which part of the
+ * story they are scrubbing through rather than inferring it from a verse
+ * reference. Canonical order revisits eras — Job among the patriarchs, the
+ * prophets among the kings — so a segment runs from an era's first appearance
+ * to the next era's, and every era appears once.
+ */
+export function eraSegments(sequence: Sequence): EraSegment[] {
+  const { steps, axis } = sequence
+  if (steps.length < 2) return []
+
+  const starts: { era: number; pct: number }[] = []
+  const seen = new Set<number>()
+  for (const [i, step] of steps.entries()) {
+    const era = eraOfStep(axis, step)
+    if (seen.has(era)) continue
+    seen.add(era)
+    // Width is measured per step, not per gap: an era that begins on the very
+    // last step still gets a sliver of track rather than nothing at all.
+    starts.push({ era, pct: (i / steps.length) * 100 })
+  }
+
+  return starts.map((start, i) => ({
+    era: start.era,
+    label: ERAS[start.era]?.label ?? '',
+    approxDate: ERAS[start.era]?.approxDate ?? '',
+    startPct: start.pct,
+    endPct: starts[i + 1]?.pct ?? 100,
+  }))
+}
+
 /** The step at or below `cursor`, for a cursor that no longer lands on one. */
 export function snapToStep(cursor: number, steps: number[]): number {
   if (!steps.length) return cursor
