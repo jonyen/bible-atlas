@@ -1,5 +1,7 @@
 # Bible Atlas
 
+Live at **https://atlas.jonyen.com**. Every push to `main` deploys there (see `.github/workflows/deploy.yml`).
+
 An interactive map of Bible geography. Browse ~1,275 identifiable places from
 the OpenBible.info geocoding dataset, filter by testament, overlay the tribal
 allotments of Joshua 13–19, and trace 179 journey routes (UBS Bible Routes) for
