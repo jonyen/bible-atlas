@@ -1,7 +1,7 @@
 # Book view — design
 
 Date: 2026-09-16
-Status: approved in chat, pending spec review
+Status: implemented
 
 ## Goal
 
@@ -38,7 +38,7 @@ interface BookPlace {
 - Every one of the 66 books is a key; books with no mapped places have `[]`.
 - Each array is sorted by `count` desc, then `first` asc (so "most mentioned"
   is the stored order; "story order" is a client-side sort by `first`).
-- Expected size ~150 KB raw, well under 50 KB gzipped.
+- Expected size ~260 KB raw, ~45 KB gzipped.
 
 A small pure module `src/data/books.ts` exposes:
 
@@ -46,7 +46,7 @@ A small pure module `src/data/books.ts` exposes:
   `bookFromSlug(slug)` for `?book=` (e.g. `1-samuel`, `song-of-solomon`).
 - `loadBookIndex(): Promise<BookIndex>` — dynamic `import('./books.json')`,
   memoized.
-- `storyOrder(list)` and `topN(list, n)` helpers.
+- `storyOrder(list)` helper.
 - `countTier(count, maxInBook): 0 | 1 | 2` for marker sizing.
 
 ## UI
@@ -99,7 +99,7 @@ A small pure module `src/data/books.ts` exposes:
 
 - Add Vitest (`npm test`).
 - Unit tests: `bookSlug`/`bookFromSlug` round-trip for all 66 books;
-  `storyOrder`, `topN`, `countTier`; `visiblePlaces` with a book filter;
+  `storyOrder`, `countTier`; `visiblePlaces` with a book filter;
   a data sanity test on `books.json` (66 keys, sorted order, counts match
   refs length, every id exists in `places.json`).
 - Manual browser check with MapLibre: Genesis, Joshua (431 places), Acts,

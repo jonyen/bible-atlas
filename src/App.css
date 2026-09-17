@@ -578,6 +578,7 @@ body,
     display: none;
   }
 }
+
 /* ---------- Book view ---------- */
 .book-select {
   width: 100%;
@@ -598,7 +599,6 @@ body,
   list-style: none;
   margin: 8px 0 4px;
   padding: 0;
-  counter-reset: bp;
 }
 
 .book-places li button {
