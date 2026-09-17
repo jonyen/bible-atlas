@@ -66,10 +66,14 @@ export function bookBounds(book: MapBook): ViewportBounds | null {
   return { south: south - latGrow, north: north + latGrow, west: west - lngGrow, east: east + lngGrow }
 }
 
-/** Pixel padding for fitting a book, clear of the layers panel on desktop. */
+/** Pixel padding for fitting a book, clear of the layers panel (bottom sheet on phone, side panel on desktop). */
 export function fitPadding(): { top: number; right: number; bottom: number; left: number } {
   const phone = window.matchMedia('(max-width: 720px)').matches
-  return phone ? { top: 80, right: 30, bottom: 40, left: 30 } : { top: 80, right: 60, bottom: 50, left: 330 }
+  if (phone) {
+    // .panel-left sits `bottom: 56px` with `max-height: 46vh`; clear it plus a small margin.
+    return { top: 80, right: 30, bottom: 56 + Math.round(window.innerHeight * 0.46) + 10, left: 30 }
+  }
+  return { top: 80, right: 60, bottom: 50, left: 330 }
 }
 
 /** Vertical nudge that keeps a picked place above the mobile bottom sheet. */
