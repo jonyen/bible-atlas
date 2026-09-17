@@ -9,6 +9,7 @@ import { byId } from './data'
 import { EDEN_RIVERS } from './data/rivers'
 import { riverBounds } from './components/map/shared'
 import { bookFromSlug, bookSlug, loadBookIndex, toMapBook, type BookIndex } from './data/books'
+import { debounce } from './lib/debounce'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import {
   axisKeys,
@@ -24,6 +25,11 @@ import {
 } from './lib/scrubber'
 import type { Era, Place } from './types'
 import './App.css'
+
+/** How long the map waits after the last scrubber move before following. */
+const PAN_SETTLE_MS = 220
+/** How long the saved position waits, so a burst of steps writes once. */
+const SAVE_SETTLE_MS = 600
 
 /** The place named by `?place=<id>`, so a selection can be shared as a link. */
 function placeFromUrl(): Place | null {
@@ -92,6 +98,12 @@ function App() {
 
   const label = cursorLabel(position.axis, cursor, currentPlace?.first ?? null)
 
+  // Stepping quickly — holding an arrow down, or clicking through an era —
+  // would otherwise start a camera move and a write per step. Both wait for the
+  // reader to settle, so a burst ends in one move to where they actually landed.
+  const saveSoon = useMemo(() => debounce(savePosition, SAVE_SETTLE_MS), [])
+  useEffect(() => () => saveSoon.cancel(), [saveSoon])
+
   // Walk the map along with the story, without opening the place panel. The
   // first move is a slow glide from the default view to wherever the reader
   // left off, so the map is seen travelling there rather than starting there.
@@ -107,7 +119,11 @@ function App() {
       else mapRef.current?.glideTo(currentPlace)
       return
     }
-    if (follow) mapRef.current?.panToPlace(currentPlace)
+    if (!follow) return
+    // The effect re-runs on every step, and the cleanup drops the pending move,
+    // so a burst of steps pans once, to where the reader stopped.
+    const timer = setTimeout(() => mapRef.current?.panToPlace(currentPlace), PAN_SETTLE_MS)
+    return () => clearTimeout(timer)
     // glidedRef keeps the opening move to once, so the cursor deps are safe here.
   }, [follow, journey, mapReady, currentPlace, position.axis, cursor])
 
@@ -118,7 +134,7 @@ function App() {
   }
 
   function commitCursor(next: number) {
-    savePosition({ axis: position.axis, cursor: next })
+    saveSoon({ axis: position.axis, cursor: next })
   }
 
   function changeAxis(axis: Axis) {
