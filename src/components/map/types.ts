@@ -1,5 +1,6 @@
 import type { Era, Place } from '../../types'
 import type { MapBook } from '../../data/books'
+import type { BaseMap } from './basemap'
 
 export interface MapViewHandle {
   flyTo: (place: Place) => void
@@ -9,6 +10,7 @@ export interface MapViewHandle {
 
 export interface MapViewProps {
   era: Era
+  baseMap: BaseMap
   showTerritories: boolean
   activeCats: string[]
   selected: Place | null
