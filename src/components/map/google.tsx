@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { TERRITORIES } from '../../data'
+import { RIVERS, RIVER_COLOR } from '../../data/rivers'
 import { loadRoutes } from '../../data/routes'
 import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
@@ -13,6 +14,8 @@ import {
   fitPadding,
   journeyFade,
   markerStyle,
+  riverInfoNode,
+  riverLabelPoint,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -23,6 +26,10 @@ import {
 import type { MapViewHandle, MapViewProps } from './types'
 
 const RADII = [5, 7, 9] as const
+
+/** A 1x1 transparent PNG: a marker that is only its label. */
+const BLANK_PIXEL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
 function dotIcon(
   color: string,
@@ -56,7 +63,7 @@ function fitGoogle(map: google.maps.Map, book: MapBook) {
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, baseMap, showTerritories, activeCats, selected, book, journey, onSelect, onReady },
+  { era, baseMap, showTerritories, showRivers, activeCats, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -152,11 +159,18 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const color = placeColor(p, era)
         const { tier, strong } = markerStyle(p, book)
         const fade = journeyFade(p.id, journey)
-        const look = `${color}|${tier}|${strong}|${isSel}|${fade}`
+        // Only the place at the cursor is named: the story says where it is.
+        const current = Boolean(journey?.current.has(p.id))
+        const look = `${color}|${tier}|${strong}|${isSel}|${fade}|${current}`
         const existing = markers.get(p.id)
         if (existing) {
           if (existing.look !== look) {
             existing.marker.setIcon(dotIcon(color, tier, strong, isSel, fade))
+            existing.marker.setLabel(
+              current
+                ? { text: `${p.article ? p.article + ' ' : ''}${p.name}`, color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
+                : null,
+            )
             existing.marker.setZIndex(isSel ? 1000 : tier + 1)
             existing.look = look
           }
@@ -166,6 +180,9 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
           position: { lat: p.lat, lng: p.lng },
           map,
           icon: dotIcon(color, tier, strong, isSel, fade),
+          label: current
+            ? { text: `${p.article ? p.article + ' ' : ''}${p.name}`, color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
+            : undefined,
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
           zIndex: isSel ? 1000 : tier + 1,
         })
@@ -230,6 +247,48 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   useEffect(() => {
     const map = mapRef.current
     if (!ready || !map) return
+    if (!showRivers) return
+    const lines: google.maps.Polyline[] = []
+    const labels: google.maps.Marker[] = []
+    for (const river of RIVERS) {
+      const [lng, lat] = riverLabelPoint(river)
+      labels.push(
+        new google.maps.Marker({
+          position: { lat, lng },
+          map,
+          clickable: false,
+          // An empty icon leaves just the label: Google draws no text on a line.
+          icon: { url: BLANK_PIXEL, size: new google.maps.Size(1, 1) },
+          label: { text: river.name, color: RIVER_COLOR, fontSize: '12px', fontWeight: '600' },
+          zIndex: 0,
+        }),
+      )
+      for (const path of river.paths) {
+        const line = new google.maps.Polyline({
+          path: path.map(([lng, lat]: [number, number]) => ({ lat, lng })),
+          strokeColor: RIVER_COLOR,
+          strokeOpacity: 0.8,
+          strokeWeight: 2.2,
+          zIndex: 0,
+          map,
+        })
+        line.addListener('click', (e: google.maps.MapMouseEvent) => {
+          const lat = e.latLng?.lat() ?? path[0][1]
+          const lng = e.latLng?.lng() ?? path[0][0]
+          showInfo(riverInfoNode(river), lat, lng)
+        })
+        lines.push(line)
+      }
+    }
+    return () => {
+      lines.forEach((l) => l.setMap(null))
+      labels.forEach((l) => l.setMap(null))
+    }
+  }, [ready, showRivers])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
     const polys: google.maps.Polygon[] = []
     if (showTerritories) {
       for (const t of TERRITORIES) {
@@ -277,6 +336,10 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       },
       panToPlace(place: Place) {
         mapRef.current?.panTo({ lat: place.lat, lng: place.lng })
+      },
+      glideToBounds(bounds) {
+        // Google's fitBounds has no duration of its own; it settles in one step.
+        mapRef.current?.fitBounds(bounds, fitPadding())
       },
       glideTo(place: Place) {
         const map = mapRef.current

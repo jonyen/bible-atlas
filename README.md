@@ -14,7 +14,9 @@ backend is built in as a drop-in alternative.
 
 - **Searchable places** — every identifiable ancient place, with variant spellings
 - **Book view** — pick a book to map only its places, ranked by mentions or in story order, with that book's verses for each place
-- **Base map switch** — the ordinary modern map, or terrain only: no roads, modern towns or national borders
+- **Narrative scrubber** — drag through scripture and watch places appear as the story reaches them, in canonical, era or approximate chronological order; the map remembers where you stopped
+- **Rivers** — the Tigris, Euphrates, Jordan and Nile drawn as rivers rather than the single point the place data stores, with the names Genesis 2 gives them
+- **Base map switch** — terrain only (the default): no roads, modern towns or national borders — or the ordinary modern map
 - **Testament / timeline filter** — Old Testament, New Testament, or all
 - **Tribe boundaries** — simplified allotments of the twelve tribes (Josh. 13–19)
 - **Name meanings** — the traditional meaning of about three quarters of place names (Bethlehem: "house of bread")
@@ -63,6 +65,13 @@ cd ../../..
 node scripts/prepare-data.mjs
 npm test
 ```
+
+River centerlines come from [Natural Earth](https://www.naturalearthdata.com/)
+(public domain); `scripts/prepare-rivers.mjs` filters them to the rivers
+scripture names. Natural Earth labels each reach in the local language, so the
+Tigris arrives as the Dicle above the Iraqi border and the Euphrates as the
+Firat, Al Furat and Murat — all of which the script matches, or the rivers stop
+short of the highlands.
 
 Tribal territory polygons are hand-curated approximations in
 `scripts/territories-data.mjs` based on Joshua 13–19.

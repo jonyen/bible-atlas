@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
+import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { cameraAt, eraMatch, journeyFade, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { cameraAt, eraMatch, journeyFade, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
@@ -152,5 +153,38 @@ describe('cameraAt', () => {
 
   it('clamps past the end rather than overshooting', () => {
     expect(cameraAt(from, to, 1.4)).toEqual(to)
+  })
+})
+
+describe('riverBounds', () => {
+  it('spans the Tigris and Euphrates from the highlands to the Gulf', () => {
+    const b = riverBounds(['tigris', 'euphrates'])!
+    expect(b.north).toBeGreaterThan(37)
+    expect(b.south).toBeLessThan(32)
+    expect(b.west).toBeLessThan(40)
+    expect(b.east).toBeGreaterThan(47)
+  })
+
+  it('returns null for rivers it does not know', () => {
+    expect(riverBounds(['pishon'])).toBeNull()
+  })
+})
+
+describe('riverLabelPoint', () => {
+  it('anchors the label in the middle of the river, not at a stray tributary', () => {
+    const river = RIVERS.find((r) => r.id === 'tigris')!
+    const [lng, lat] = riverLabelPoint(river)
+    const lats = river.paths.flat().map(([, y]) => y)
+    const lngs = river.paths.flat().map(([x]) => x)
+    expect(lat).toBeGreaterThanOrEqual(Math.min(...lats))
+    expect(lat).toBeLessThanOrEqual(Math.max(...lats))
+    expect(lng).toBeGreaterThanOrEqual(Math.min(...lngs))
+    expect(lng).toBeLessThanOrEqual(Math.max(...lngs))
+  })
+
+  it('picks a point on the longest segment', () => {
+    const river = RIVERS.find((r) => r.id === 'euphrates')!
+    const longest = river.paths.reduce((a, b) => (b.length > a.length ? b : a))
+    expect(longest).toContainEqual(riverLabelPoint(river))
   })
 })

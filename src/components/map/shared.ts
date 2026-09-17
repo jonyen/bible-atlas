@@ -1,5 +1,6 @@
 import { PLACES, byId } from '../../data'
 import { countTier, type MapBook } from '../../data/books'
+import { RIVERS, type River } from '../../data/rivers'
 import type { Place, Route, Territory } from '../../types'
 import {
   BOTH_COLOR,
@@ -58,6 +59,30 @@ export function markerStyle(p: Place, book: MapBook | null): { tier: 0 | 1 | 2; 
 export function journeyFade(id: string, journey: MapJourney | null): number {
   if (!journey) return 1
   return journey.current.has(id) ? 1 : PAST_FADE
+}
+
+/**
+ * Bounding box of the named rivers. The atlas opens on this rather than on a
+ * pin: Genesis 2 describes Eden by its rivers, and where the garden itself sat
+ * is a low-confidence guess, so the rivers are the honest thing to show.
+ */
+export function riverBounds(ids: string[]): ViewportBounds | null {
+  let south = 90
+  let north = -90
+  let west = 180
+  let east = -180
+  let found = false
+  for (const river of RIVERS) {
+    if (!ids.includes(river.id)) continue
+    found = true
+    for (const [lng, lat] of river.paths.flat()) {
+      south = Math.min(south, lat)
+      north = Math.max(north, lat)
+      west = Math.min(west, lng)
+      east = Math.max(east, lng)
+    }
+  }
+  return found ? { south, north, west, east } : null
 }
 
 export interface Camera {
@@ -135,6 +160,20 @@ export function routeInfoNode(r: Route): HTMLDivElement {
   const el = document.createElement('div')
   el.className = 'iw'
   el.innerHTML = `<h3>${r.name}</h3><p class="iw-sub">${r.cat}</p>`
+  return el
+}
+
+/** [lng, lat] to anchor a river's label: the middle of its longest reach. */
+export function riverLabelPoint(r: River): [number, number] {
+  const line = r.paths.reduce((a, b) => (b.length > a.length ? b : a))
+  return line[Math.floor(line.length / 2)]
+}
+
+export function riverInfoNode(r: River): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'iw'
+  const called = r.scriptureName ? ` · called ${r.scriptureName} in Genesis 2` : ''
+  el.innerHTML = `<h3>${r.name}</h3><p class="iw-sub">River${called}</p><p>${r.note}</p>`
   return el
 }
 

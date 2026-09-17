@@ -6,6 +6,8 @@ import SearchBox from './components/SearchBox'
 import FilterPanel from './components/FilterPanel'
 import PlacePanel from './components/PlacePanel'
 import { byId } from './data'
+import { EDEN_RIVERS } from './data/rivers'
+import { riverBounds } from './components/map/shared'
 import { bookFromSlug, bookSlug, loadBookIndex, toMapBook, type BookIndex } from './data/books'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import {
@@ -36,8 +38,11 @@ function bookFromUrl(): string | null {
 
 function App() {
   const [era, setEra] = useState<Era>('all')
-  const [baseMap, setBaseMap] = useState<BaseMap>('modern')
+  // The atlas opens on terrain alone: roads and modern towns say nothing about
+  // where the story happens, and the opening view is ancient geography.
+  const [baseMap, setBaseMap] = useState<BaseMap>('ancient')
   const [showTerritories, setShowTerritories] = useState(false)
+  const [showRivers, setShowRivers] = useState(true)
   const [activeCats, setActiveCats] = useState<string[]>([])
   const [selected, setSelected] = useState<Place | null>(placeFromUrl)
   const mapRef = useRef<MapViewHandle>(null)
@@ -95,11 +100,16 @@ function App() {
     if (!journey || !mapReady || !currentPlace) return
     if (!glidedRef.current) {
       glidedRef.current = true
-      mapRef.current?.glideTo(currentPlace)
+      // Genesis 2 places Eden by its rivers, and the garden's own coordinate is
+      // a low-confidence guess, so the opening view frames the rivers instead.
+      const rivers = eraOfStep(position.axis, cursor) === 0 ? riverBounds(EDEN_RIVERS) : null
+      if (rivers) mapRef.current?.glideToBounds(rivers)
+      else mapRef.current?.glideTo(currentPlace)
       return
     }
     if (follow) mapRef.current?.panToPlace(currentPlace)
-  }, [follow, journey, mapReady, currentPlace])
+    // glidedRef keeps the opening move to once, so the cursor deps are safe here.
+  }, [follow, journey, mapReady, currentPlace, position.axis, cursor])
 
   function moveCursor(next: number) {
     // Moving the scrubber leaves the book behind, the other half of the trade.
@@ -170,6 +180,7 @@ function App() {
           era={mapBook ? 'all' : era}
           baseMap={baseMap}
           showTerritories={showTerritories}
+          showRivers={showRivers}
           activeCats={activeCats}
           selected={selected}
           book={mapBook}
@@ -215,6 +226,8 @@ function App() {
         onBaseMap={setBaseMap}
         showTerritories={showTerritories}
         onTerritories={setShowTerritories}
+        showRivers={showRivers}
+        onRivers={setShowRivers}
         activeCats={activeCats}
         onToggleCat={toggleCat}
         book={book}
@@ -259,7 +272,7 @@ function App() {
       <footer className="attribution">
         Map: {MAP_PROVIDER === 'maplibre' ? 'OpenFreeMap © OpenMapTiles · OpenStreetMap' : 'Google Maps'} ·
         Data: OpenBible.info (CC-BY-4.0) · UBS Bible Routes (CC BY-SA 4.0) · Name meanings:
-        STEPBible.org (CC BY 4.0) · tribal
+        STEPBible.org (CC BY 4.0) · Rivers: Natural Earth (public domain) · tribal
         boundaries curated from Joshua 13–19
         {usage && import.meta.env.DEV && (
           <span className="usage-badge" title="Billable map loads this month (Maps JavaScript API)">

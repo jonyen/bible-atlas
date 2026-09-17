@@ -8,6 +8,8 @@ export interface MapViewHandle {
   panToPlace: (place: Place) => void
   /** The opening move: a slow glide to where the story starts. */
   glideTo: (place: Place) => void
+  /** The opening move when the story starts somewhere disputed: frame the region instead. */
+  glideToBounds: (bounds: ViewportBounds) => void
   clearSelection: () => void
   fitBook: (book: MapBook) => void
 }
@@ -16,6 +18,7 @@ export interface MapViewProps {
   era: Era
   baseMap: BaseMap
   showTerritories: boolean
+  showRivers: boolean
   activeCats: string[]
   selected: Place | null
   book: MapBook | null

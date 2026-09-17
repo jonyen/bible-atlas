@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { TERRITORIES } from '../../data'
+import { RIVERS, RIVER_COLOR } from '../../data/rivers'
 import { loadRoutes } from '../../data/routes'
 import { CAT_COLORS } from '../../types'
 import type { Place, Route } from '../../types'
@@ -14,6 +15,7 @@ import {
   findPlace,
   journeyFade,
   markerStyle,
+  riverInfoNode,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -27,6 +29,10 @@ const STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
 const PLACES_SOURCE = 'atlas-places'
 const PLACES_LAYER = 'atlas-places-circle'
+const RIVERS_SOURCE = 'atlas-rivers'
+const RIVERS_LAYER = 'atlas-rivers-line'
+const RIVERS_LABEL = 'atlas-rivers-label'
+const PLACES_LABEL = 'atlas-places-label'
 const ROUTES_SOURCE = 'atlas-routes'
 const ROUTES_LAYER = 'atlas-routes-line'
 const TERRITORIES_SOURCE = 'atlas-territories'
@@ -49,7 +55,7 @@ function fitMapLibre(map: maplibregl.Map, book: MapBook) {
  * Drop-in alternative to the Google backend - switch with VITE_MAP_PROVIDER=maplibre.
  */
 const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreView(
-  { era, baseMap, showTerritories, activeCats, selected, book, journey, onSelect, onReady },
+  { era, baseMap, showTerritories, showRivers, activeCats, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -78,6 +84,35 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     })
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     map.on('load', () => {
+      map.addSource(RIVERS_SOURCE, { type: 'geojson', data: fc([]) })
+      map.addLayer({
+        id: RIVERS_LAYER,
+        type: 'line',
+        source: RIVERS_SOURCE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': RIVER_COLOR,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.2, 10, 3.2],
+          'line-opacity': 0.8,
+        },
+      })
+      map.addLayer({
+        id: RIVERS_LABEL,
+        type: 'symbol',
+        source: RIVERS_SOURCE,
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': ['get', 'name'],
+          'text-size': 12,
+          'text-letter-spacing': 0.12,
+          'text-max-angle': 30,
+        },
+        paint: {
+          'text-color': RIVER_COLOR,
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.6,
+        },
+      })
       map.addSource(PLACES_SOURCE, {
         type: 'geojson',
         data: fc([]),
@@ -93,6 +128,25 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           'circle-stroke-opacity': ['coalesce', ['get', 'stroke'], 1],
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['case', ['==', ['get', 'sel'], 1], 2.5, 0.8],
+        },
+      })
+      // Only the place at the cursor is named: the story says where it is.
+      map.addLayer({
+        id: PLACES_LABEL,
+        type: 'symbol',
+        source: PLACES_SOURCE,
+        filter: ['==', ['get', 'cur'], 1],
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 13,
+          'text-offset': [0, 1.1],
+          'text-anchor': 'top',
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': '#2b2b2b',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.8,
         },
       })
       map.addSource(ROUTES_SOURCE, { type: 'geojson', data: fc([]) })
@@ -138,6 +192,23 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       map.remove()
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    const source = map.getSource(RIVERS_SOURCE) as maplibregl.GeoJSONSource | undefined
+    source?.setData(
+      fc(
+        showRivers
+          ? RIVERS.map((r) => ({
+              type: 'Feature' as const,
+              geometry: { type: 'MultiLineString' as const, coordinates: r.paths },
+              properties: { 'river-id': r.id, name: r.name },
+            }))
+          : [],
+      ),
+    )
+  }, [ready, showRivers])
 
   // Hide or restore the modern-infrastructure layers of the vector style.
   useEffect(() => {
@@ -185,6 +256,8 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
               geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
               properties: {
                 'place-id': p.id,
+                name: `${p.article ? p.article + ' ' : ''}${p.name}`,
+                cur: journey?.current.has(p.id) ? 1 : 0,
                 color: placeColor(p, era),
                 op: (strong || sel ? 0.95 : 0.55) * fade,
                 stroke: fade,
@@ -263,7 +336,8 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     const map = inst
     function onClick(e: maplibregl.MapMouseEvent) {
       const feats = map.queryRenderedFeatures(e.point, {
-        layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL, TERRITORIES_LINE],
+        // Places first, then routes, then rivers: the smallest target wins a shared pixel.
+        layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL, TERRITORIES_LINE, RIVERS_LAYER],
       })
       const f = feats[0]
       if (!f) {
@@ -277,6 +351,9 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         if (!p) return
         popupRef.current?.remove()
         onSelect(p)
+      } else if (layer === RIVERS_LAYER) {
+        const river = RIVERS.find((r) => r.id === f.properties?.['river-id'])
+        if (river) showPopup(riverInfoNode(river), e.lngLat.lng, e.lngLat.lat)
       } else if (layer === ROUTES_LAYER) {
         const r = routesByIdRef.current.get(f.properties?.['route-id'])
         if (!r) return
@@ -291,7 +368,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
 
     function onMove(e: maplibregl.MapMouseEvent) {
       const feats = map.queryRenderedFeatures(e.point, {
-        layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL],
+        layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL, RIVERS_LAYER],
       })
       map.getCanvas().style.cursor = feats.length ? 'pointer' : ''
     }
@@ -316,6 +393,12 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       },
       panToPlace(place: Place) {
         mapRef.current?.easeTo({ center: [place.lng, place.lat], duration: 400 })
+      },
+      glideToBounds(bounds) {
+        mapRef.current?.fitBounds(
+          [[bounds.west, bounds.south], [bounds.east, bounds.north]],
+          { padding: fitPadding(), maxZoom: 9, duration: GLIDE_MS },
+        )
       },
       glideTo(place: Place) {
         mapRef.current?.flyTo({
