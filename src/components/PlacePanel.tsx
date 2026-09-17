@@ -9,7 +9,9 @@ interface PlacePanelProps {
 }
 
 const BOOKS_SHOWN = 6
-/** On phones the "In {Book}" list starts collapsed to this many verses (CSS hides the rest). */
+/** On phones an "In {Book}" list longer than this starts collapsed... */
+const IN_BOOK_COLLAPSE_OVER = 15
+/** ...to this many verses (CSS hides the rest). */
 const IN_BOOK_REFS_SHOWN = 10
 
 const MEANING_NOTE =
@@ -134,10 +136,10 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
 
 function InBookRefs({ refs }: { refs: string[] }) {
   const [expanded, setExpanded] = useState(false)
-  const hidden = refs.length - IN_BOOK_REFS_SHOWN
+  const collapsed = refs.length > IN_BOOK_COLLAPSE_OVER && !expanded
   return (
     <>
-      <ul className={`refs in-book${expanded ? ' expanded' : ''}`}>
+      <ul className={`refs${collapsed ? ' collapsed' : ''}`}>
         {refs.map((r) => (
           <li key={r}>
             <a href={bgUrl(r)} target="_blank" rel="noreferrer">
@@ -146,9 +148,9 @@ function InBookRefs({ refs }: { refs: string[] }) {
           </li>
         ))}
       </ul>
-      {hidden > 0 && !expanded && (
+      {collapsed && (
         <button type="button" className="text-btn in-book-more" onClick={() => setExpanded(true)}>
-          +{hidden} more
+          +{refs.length - IN_BOOK_REFS_SHOWN} more
         </button>
       )}
     </>

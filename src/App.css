@@ -595,7 +595,7 @@ body,
   }
 
   /* Keep IN_BOOK_REFS_SHOWN (PlacePanel.tsx) in sync with n+11. */
-  .refs.in-book:not(.expanded) li:nth-child(n + 11) {
+  .refs.collapsed li:nth-child(n + 11) {
     display: none;
   }
 }
