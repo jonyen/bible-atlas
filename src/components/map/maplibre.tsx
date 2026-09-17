@@ -8,9 +8,11 @@ import type { Place, Route } from '../../types'
 import type { MapBook } from '../../data/books'
 import { applyMapLibreBaseMap } from './basemap'
 import {
+  GLIDE_MS,
   bookBounds,
   fitPadding,
   findPlace,
+  journeyFade,
   markerStyle,
   placeColor,
   sheetOffset,
@@ -47,7 +49,7 @@ function fitMapLibre(map: maplibregl.Map, book: MapBook) {
  * Drop-in alternative to the Google backend - switch with VITE_MAP_PROVIDER=maplibre.
  */
 const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreView(
-  { era, baseMap, showTerritories, activeCats, selected, book, onSelect, onReady },
+  { era, baseMap, showTerritories, activeCats, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -88,6 +90,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           'circle-color': ['get', 'color'],
           'circle-radius': ['case', ['==', ['get', 'sel'], 1], 8, ['get', 'r']],
           'circle-opacity': ['get', 'op'],
+          'circle-stroke-opacity': ['coalesce', ['get', 'stroke'], 1],
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['case', ['==', ['get', 'sel'], 1], 2.5, 0.8],
         },
@@ -167,6 +170,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         era,
         book,
         selected?.id ?? null,
+        journey,
       )
       const source = map.getSource(PLACES_SOURCE) as maplibregl.GeoJSONSource
       if (!source) return
@@ -175,13 +179,15 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           list.map((p) => {
             const { tier, strong } = markerStyle(p, book)
             const sel = selected?.id === p.id
+            const fade = journeyFade(p.id, journey)
             return {
               type: 'Feature',
               geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
               properties: {
                 'place-id': p.id,
                 color: placeColor(p, era),
-                op: strong || sel ? 0.95 : 0.55,
+                op: (strong || sel ? 0.95 : 0.55) * fade,
+                stroke: fade,
                 r: RADII[tier],
                 sel: sel ? 1 : 0,
               },
@@ -204,7 +210,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       disposed = true
       map.off('moveend', schedule)
     }
-  }, [ready, era, selected?.id, book])
+  }, [ready, era, selected?.id, book, journey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -307,6 +313,16 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         map.flyTo({ center: [place.lng, place.lat], zoom: Math.max(map.getZoom(), 10), offset: [0, -sheetOffset()], essential: true })
         popupRef.current?.remove()
         onSelect(place)
+      },
+      panToPlace(place: Place) {
+        mapRef.current?.easeTo({ center: [place.lng, place.lat], duration: 400 })
+      },
+      glideTo(place: Place) {
+        mapRef.current?.flyTo({
+          center: [place.lng, place.lat],
+          duration: GLIDE_MS,
+          essential: true,
+        })
       },
       clearSelection() {
         popupRef.current?.remove()

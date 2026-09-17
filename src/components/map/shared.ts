@@ -6,6 +6,8 @@ import {
   MAX_MARKERS,
   NT_COLOR,
   OT_COLOR,
+  PAST_FADE,
+  type MapJourney,
   type ViewportBounds,
 } from './types'
 
@@ -22,18 +24,21 @@ export function eraMatch(p: Place, era: MapEra): boolean {
   return era === 'ot' ? p.ot : p.nt
 }
 
-/** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. A book replaces the era filter, but a selected place outside the book still passes so its panel and marker stay in sync. */
+/** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. A book or a journey replaces the era filter, but a selected place outside either still passes so its panel and marker stay in sync. */
 export function visiblePlaces(
   bounds: ViewportBounds,
   era: MapEra,
   book: MapBook | null = null,
   selectedId: string | null = null,
+  journey: MapJourney | null = null,
 ): Place[] {
   const latPad = (bounds.north - bounds.south) * 0.25
   const lngPad = (bounds.east - bounds.west) * 0.25
   const list: Place[] = []
   for (const p of PLACES) {
-    if (book ? !book.places.has(p.id) && p.id !== selectedId : !eraMatch(p, era)) continue
+    if (journey) {
+      if (!journey.shown.has(p.id) && p.id !== selectedId) continue
+    } else if (book ? !book.places.has(p.id) && p.id !== selectedId : !eraMatch(p, era)) continue
     if (p.lat < bounds.south - latPad || p.lat > bounds.north + latPad) continue
     if (p.lng < bounds.west - lngPad || p.lng > bounds.east + lngPad) continue
     list.push(p)
@@ -47,6 +52,36 @@ export function markerStyle(p: Place, book: MapBook | null): { tier: 0 | 1 | 2; 
   const entry = book?.places.get(p.id)
   if (!book || !entry) return { tier: p.high ? 1 : 0, strong: p.high }
   return { tier: countTier(entry.count, book.max), strong: book.top.has(p.id) || p.high }
+}
+
+/** Opacity multiplier for a place: full at the cursor, faded once the story has moved on. */
+export function journeyFade(id: string, journey: MapJourney | null): number {
+  if (!journey) return 1
+  return journey.current.has(id) ? 1 : PAST_FADE
+}
+
+export interface Camera {
+  lat: number
+  lng: number
+}
+
+/** How long the opening glide to the Garden of Eden takes. */
+export const GLIDE_MS = 2200
+
+/**
+ * A point along an eased glide between two places, `t` running 0 to 1. Slow at
+ * both ends so the move reads as the map taking you somewhere, rather than a
+ * jump. Google has no animated camera of its own, so its backend steps through
+ * this frame by frame.
+ */
+export function cameraAt(from: Camera, to: Camera, t: number): Camera {
+  if (t <= 0) return from
+  if (t >= 1) return to
+  const eased = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+  return {
+    lat: from.lat + (to.lat - from.lat) * eased,
+    lng: from.lng + (to.lng - from.lng) * eased,
+  }
 }
 
 const MIN_SPAN = 0.3

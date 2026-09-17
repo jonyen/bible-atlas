@@ -8,6 +8,18 @@ import PlacePanel from './components/PlacePanel'
 import { byId } from './data'
 import { bookFromSlug, bookSlug, loadBookIndex, toMapBook, type BookIndex } from './data/books'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
+import {
+  axisKeys,
+  buildSequence,
+  canonicalKeys,
+  cursorLabel,
+  eraOfStep,
+  firstStepInEra,
+  loadPosition,
+  savePosition,
+  snapToStep,
+  type Axis,
+} from './lib/scrubber'
 import type { Era, Place } from './types'
 import './App.css'
 
@@ -33,14 +45,80 @@ function App() {
   const [bookIndex, setBookIndex] = useState<BookIndex | null>(null)
   const [bookError, setBookError] = useState(false)
   const [mapReady, setMapReady] = useState(false)
+  const [position, setPosition] = useState(loadPosition)
+  const [follow, setFollow] = useState(true)
   const onMapReady = useCallback(() => setMapReady(true), [])
   // A shared link that names a place keeps the map on that place instead of fitting the book.
   const fittedRef = useRef<string | null>(selected ? book : null)
 
+  // The book view and the era/chronological axes both read the verse index.
+  const needsIndex = Boolean(book) || position.axis !== 'canonical'
   useEffect(() => {
-    if (!book || bookIndex) return
+    if (!needsIndex || bookIndex) return
     loadBookIndex().then(setBookIndex, () => setBookError(true))
-  }, [book, bookIndex])
+  }, [needsIndex, bookIndex])
+
+  // Canonical order comes straight from places.json, so the map opens on Eden
+  // without waiting for anything; the other two axes need the full mention list.
+  const keys = useMemo(
+    () => (position.axis === 'canonical' || !bookIndex ? canonicalKeys() : axisKeys(bookIndex)),
+    [position.axis, bookIndex],
+  )
+  const sequence = useMemo(() => buildSequence(keys, position.axis), [keys, position.axis])
+  const cursor = useMemo(() => snapToStep(position.cursor, sequence.steps), [position.cursor, sequence])
+  const axisLoading = position.axis !== 'canonical' && !bookIndex && !bookError
+
+  // A book replaces the journey: both answer "which places belong here?".
+  const journey = useMemo(() => {
+    if (book) return null
+    return {
+      shown: new Set(sequence.revealedThrough(cursor)),
+      current: new Set(sequence.revealedAt(cursor)),
+    }
+  }, [book, sequence, cursor])
+
+  const currentPlace = useMemo(() => {
+    for (const id of sequence.revealedAt(cursor)) {
+      const place = byId.get(id)
+      if (place) return place
+    }
+    return null
+  }, [sequence, cursor])
+
+  const label = cursorLabel(position.axis, cursor, currentPlace?.first ?? null)
+
+  // Walk the map along with the story, without opening the place panel. The
+  // first move is a slow glide from the default view to wherever the reader
+  // left off, so the map is seen travelling there rather than starting there.
+  const glidedRef = useRef(false)
+  useEffect(() => {
+    if (!journey || !mapReady || !currentPlace) return
+    if (!glidedRef.current) {
+      glidedRef.current = true
+      mapRef.current?.glideTo(currentPlace)
+      return
+    }
+    if (follow) mapRef.current?.panToPlace(currentPlace)
+  }, [follow, journey, mapReady, currentPlace])
+
+  function moveCursor(next: number) {
+    // Moving the scrubber leaves the book behind, the other half of the trade.
+    if (book) setBook(null)
+    setPosition((p) => ({ ...p, cursor: next }))
+  }
+
+  function commitCursor(next: number) {
+    savePosition({ axis: position.axis, cursor: next })
+  }
+
+  function changeAxis(axis: Axis) {
+    // Each axis has its own scale, so land on the same era rather than the same number.
+    const era = eraOfStep(position.axis, cursor)
+    const nextKeys = axis === 'canonical' || !bookIndex ? canonicalKeys() : axisKeys(bookIndex)
+    const next = { axis, cursor: firstStepInEra(buildSequence(nextKeys, axis), era) }
+    setPosition(next)
+    savePosition(next)
+  }
 
   const bookPlaces = book && bookIndex ? bookIndex[book] : null
   const mapBook = useMemo(() => (book && bookPlaces ? toMapBook(book, bookPlaces) : null), [book, bookPlaces])
@@ -95,6 +173,7 @@ function App() {
           activeCats={activeCats}
           selected={selected}
           book={mapBook}
+          journey={journey}
           onSelect={setSelected}
           onReady={onMapReady}
         />
@@ -143,6 +222,17 @@ function App() {
         bookError={bookError}
         onBook={setBook}
         onPickPlace={pickPlace}
+        axis={position.axis}
+        onAxis={changeAxis}
+        sequence={sequence}
+        cursor={cursor}
+        onCursor={moveCursor}
+        onCommitCursor={commitCursor}
+        follow={follow}
+        onFollow={setFollow}
+        cursorLabel={label}
+        axisLoading={axisLoading}
+        axisError={bookError && position.axis !== 'canonical'}
       />
 
       {mapShown && (

@@ -7,8 +7,11 @@ import type { Place } from '../../types'
 import type { MapBook } from '../../data/books'
 import { googleStyles } from './basemap'
 import {
+  GLIDE_MS,
   bookBounds,
+  cameraAt,
   fitPadding,
+  journeyFade,
   markerStyle,
   placeColor,
   sheetOffset,
@@ -21,13 +24,20 @@ import type { MapViewHandle, MapViewProps } from './types'
 
 const RADII = [5, 7, 9] as const
 
-function dotIcon(color: string, tier: 0 | 1 | 2, strong: boolean, selected = false): google.maps.Icon {
+function dotIcon(
+  color: string,
+  tier: 0 | 1 | 2,
+  strong: boolean,
+  selected = false,
+  fade = 1,
+): google.maps.Icon {
   const r = selected ? 12 : RADII[tier]
   const dot = selected ? 6.5 : r * 0.82
   const ring = selected
     ? `<circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="none" stroke="${color}" stroke-width="3"/>`
     : ''
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}">${ring}<circle cx="${r}" cy="${r}" r="${dot}" fill="${color}" fill-opacity="${strong || selected ? 0.95 : 0.5}" stroke="#ffffff" stroke-width="${selected ? 2 : 1}"/></svg>`
+  const fill = (strong || selected ? 0.95 : 0.5) * fade
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}">${ring}<circle cx="${r}" cy="${r}" r="${dot}" fill="${color}" fill-opacity="${fill}" stroke="#ffffff" stroke-opacity="${fade}" stroke-width="${selected ? 2 : 1}"/></svg>`
   return {
     url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     size: new google.maps.Size(r * 2, r * 2),
@@ -46,7 +56,7 @@ function fitGoogle(map: google.maps.Map, book: MapBook) {
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, baseMap, showTerritories, activeCats, selected, book, onSelect, onReady },
+  { era, baseMap, showTerritories, activeCats, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -63,6 +73,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     onReadyRef.current = onReady
   }, [onReady])
   const rafRef = useRef(0)
+  const glideRef = useRef(0)
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
@@ -124,7 +135,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       const bounds = map.getBounds()
       if (!bounds) return
       const b = bounds.toJSON()
-      const list = visiblePlaces(b, era, book, selected?.id ?? null)
+      const list = visiblePlaces(b, era, book, selected?.id ?? null, journey)
       const markers = markersRef.current
 
       // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
@@ -140,11 +151,12 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const isSel = selected?.id === p.id
         const color = placeColor(p, era)
         const { tier, strong } = markerStyle(p, book)
-        const look = `${color}|${tier}|${strong}|${isSel}`
+        const fade = journeyFade(p.id, journey)
+        const look = `${color}|${tier}|${strong}|${isSel}|${fade}`
         const existing = markers.get(p.id)
         if (existing) {
           if (existing.look !== look) {
-            existing.marker.setIcon(dotIcon(color, tier, strong, isSel))
+            existing.marker.setIcon(dotIcon(color, tier, strong, isSel, fade))
             existing.marker.setZIndex(isSel ? 1000 : tier + 1)
             existing.look = look
           }
@@ -153,7 +165,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const marker = new google.maps.Marker({
           position: { lat: p.lat, lng: p.lng },
           map,
-          icon: dotIcon(color, tier, strong, isSel),
+          icon: dotIcon(color, tier, strong, isSel, fade),
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
           zIndex: isSel ? 1000 : tier + 1,
         })
@@ -180,7 +192,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = 0
     }
-  }, [ready, era, selected?.id, book])
+  }, [ready, era, selected?.id, book, journey])
 
   useEffect(() => {
     const map = mapRef.current
@@ -262,6 +274,25 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         map.panBy(0, sheetOffset())
         infoRef.current?.close()
         onSelect(place)
+      },
+      panToPlace(place: Place) {
+        mapRef.current?.panTo({ lat: place.lat, lng: place.lng })
+      },
+      glideTo(place: Place) {
+        const map = mapRef.current
+        const start = map?.getCenter()
+        if (!map || !start) return
+        // panTo only animates over short hops, so drive the camera frame by frame.
+        const from = { lat: start.lat(), lng: start.lng() }
+        const to = { lat: place.lat, lng: place.lng }
+        const t0 = performance.now()
+        cancelAnimationFrame(glideRef.current)
+        const step = () => {
+          const t = (performance.now() - t0) / GLIDE_MS
+          map.setCenter(cameraAt(from, to, t))
+          if (t < 1) glideRef.current = requestAnimationFrame(step)
+        }
+        glideRef.current = requestAnimationFrame(step)
       },
       clearSelection() {
         infoRef.current?.close()

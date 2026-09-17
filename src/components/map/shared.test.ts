@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
 import { toMapBook } from '../../data/books'
-import { eraMatch, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { cameraAt, eraMatch, journeyFade, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
@@ -93,5 +93,64 @@ describe('bookBounds', () => {
     expect(b.east - b.west).toBeGreaterThanOrEqual(0.3 - 1e-9)
     expect(b.south).toBeLessThan(cana.lat)
     expect(b.north).toBeGreaterThan(cana.lat)
+  })
+})
+
+describe('visiblePlaces with a journey', () => {
+  const journey = { shown: new Set([cana.id, jerusalem.id]), current: new Set([cana.id]) }
+
+  it('shows only the places the scrubber has reached', () => {
+    const ids = visiblePlaces(WORLD, 'all', null, null, journey).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+  })
+
+  it('ignores the testament filter, since the journey already orders scripture', () => {
+    const ids = visiblePlaces(WORLD, 'nt', null, null, journey).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+  })
+
+  it('keeps showing a selected place the scrubber has not reached', () => {
+    const behind = { shown: new Set([cana.id]), current: new Set([cana.id]) }
+    const ids = visiblePlaces(WORLD, 'all', null, jerusalem.id, behind).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+  })
+})
+
+describe('journeyFade', () => {
+  const journey = { shown: new Set([cana.id, jerusalem.id]), current: new Set([cana.id]) }
+
+  it('fades places already passed and keeps the current one at full strength', () => {
+    expect(journeyFade(cana.id, journey)).toBe(1)
+    expect(journeyFade(jerusalem.id, journey)).toBeLessThan(1)
+  })
+
+  it('leaves every place at full strength without a journey', () => {
+    expect(journeyFade(jerusalem.id, null)).toBe(1)
+  })
+})
+
+describe('cameraAt', () => {
+  const from = { lat: 31.78, lng: 35.23 }
+  const to = { lat: 40.38, lng: 44.95 }
+
+  it('starts at the origin and lands exactly on the target', () => {
+    expect(cameraAt(from, to, 0)).toEqual(from)
+    expect(cameraAt(from, to, 1)).toEqual(to)
+  })
+
+  it('eases: the midpoint of the glide is the midpoint of the path', () => {
+    const mid = cameraAt(from, to, 0.5)
+    expect(mid.lat).toBeCloseTo((from.lat + to.lat) / 2, 6)
+    expect(mid.lng).toBeCloseTo((from.lng + to.lng) / 2, 6)
+  })
+
+  it('moves slowly at the start, so the glide reads as deliberate', () => {
+    const early = cameraAt(from, to, 0.1)
+    const linear = from.lat + (to.lat - from.lat) * 0.1
+    expect(early.lat).toBeLessThan(linear)
+  })
+
+  it('clamps past the end rather than overshooting', () => {
+    expect(cameraAt(from, to, 1.4)).toEqual(to)
   })
 })

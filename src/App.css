@@ -659,3 +659,49 @@ body,
   font-size: 0.74rem;
   color: var(--muted);
 }
+
+/* Scrubber: the journey through scripture. */
+.scrubber .track {
+  position: relative;
+  margin: 12px 0 2px;
+}
+
+.scrubber input[type='range'] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: grab;
+}
+
+.scrubber input[type='range']:active {
+  cursor: grabbing;
+}
+
+.scrubber input[type='range']:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Era boundaries, under the track so the handle stays readable over them. */
+.scrubber .ticks {
+  position: relative;
+  height: 6px;
+  margin: 0 7px;
+}
+
+.scrubber .ticks span {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 6px;
+  margin-left: -0.5px;
+  background: var(--panel-border);
+}
+
+.scrubber .cursor-label {
+  margin: 4px 0 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  min-height: 1.2em;
+}
