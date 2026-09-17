@@ -15,6 +15,7 @@ import {
   findPlace,
   journeyFade,
   markerStyle,
+  placeLabel,
   riverInfoNode,
   placeColor,
   sheetOffset,
@@ -106,6 +107,9 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           'text-size': 12,
           'text-letter-spacing': 0.12,
           'text-max-angle': 30,
+          // A river runs for thousands of kilometres; naming it every 250px
+          // (the default) turns the line into a ribbon of repeated words.
+          'symbol-spacing': 600,
         },
         paint: {
           'text-color': RIVER_COLOR,
@@ -256,7 +260,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
               geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
               properties: {
                 'place-id': p.id,
-                name: `${p.article ? p.article + ' ' : ''}${p.name}`,
+                name: placeLabel(p),
                 cur: journey?.current.has(p.id) ? 1 : 0,
                 color: placeColor(p, era),
                 op: (strong || sel ? 0.95 : 0.55) * fade,

@@ -705,3 +705,19 @@ body,
   color: var(--ink);
   min-height: 1.2em;
 }
+
+/* A place the data cannot vouch for: say so rather than let the dot speak. */
+.uncertain-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--panel-border);
+  background: #faf7f1;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.uncertain-note strong {
+  color: var(--ink);
+  font-weight: 600;
+}

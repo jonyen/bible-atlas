@@ -14,6 +14,7 @@ import {
   fitPadding,
   journeyFade,
   markerStyle,
+  placeLabel,
   riverInfoNode,
   riverLabelPoint,
   placeColor,
@@ -26,6 +27,10 @@ import {
 import type { MapViewHandle, MapViewProps } from './types'
 
 const RADII = [5, 7, 9] as const
+
+function markerLabel(p: Place): google.maps.MarkerLabel {
+  return { text: placeLabel(p), color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
+}
 
 /** A 1x1 transparent PNG: a marker that is only its label. */
 const BLANK_PIXEL =
@@ -166,11 +171,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         if (existing) {
           if (existing.look !== look) {
             existing.marker.setIcon(dotIcon(color, tier, strong, isSel, fade))
-            existing.marker.setLabel(
-              current
-                ? { text: `${p.article ? p.article + ' ' : ''}${p.name}`, color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
-                : null,
-            )
+            existing.marker.setLabel(current ? markerLabel(p) : null)
             existing.marker.setZIndex(isSel ? 1000 : tier + 1)
             existing.look = look
           }
@@ -180,9 +181,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
           position: { lat: p.lat, lng: p.lng },
           map,
           icon: dotIcon(color, tier, strong, isSel, fade),
-          label: current
-            ? { text: `${p.article ? p.article + ' ' : ''}${p.name}`, color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
-            : undefined,
+          label: current ? markerLabel(p) : undefined,
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
           zIndex: isSel ? 1000 : tier + 1,
         })

@@ -3,7 +3,7 @@ import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
 import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { cameraAt, eraMatch, journeyFade, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { cameraAt, eraMatch, journeyFade, placeLabel, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
 import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
@@ -186,5 +186,21 @@ describe('riverLabelPoint', () => {
     const river = RIVERS.find((r) => r.id === 'euphrates')!
     const longest = river.paths.reduce((a, b) => (b.length > a.length ? b : a))
     expect(longest).toContainEqual(riverLabelPoint(river))
+  })
+})
+
+describe('placeLabel', () => {
+  const eden = PLACES.find((p) => p.id === 'af3daeb')!
+
+  it('flags a place whose location the data is unsure of', () => {
+    expect(placeLabel(eden)).toBe('Eden — site uncertain')
+  })
+
+  it('leaves a confident place with its plain name', () => {
+    expect(placeLabel({ ...jerusalem, high: true })).toBe('Jerusalem')
+  })
+
+  it('keeps the article a place is normally read with', () => {
+    expect(placeLabel({ ...jerusalem, high: true, article: 'the' })).toBe('the Jerusalem')
   })
 })

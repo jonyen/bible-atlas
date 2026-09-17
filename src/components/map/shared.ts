@@ -163,6 +163,16 @@ export function routeInfoNode(r: Route): HTMLDivElement {
   return el
 }
 
+/**
+ * The name to draw beside a marker. Places the data is unsure of say so: the
+ * atlas labels the place at the scrubber's cursor, and a bare "Eden" would
+ * claim more than OpenBible does — it scores that identification 178 of 1000.
+ */
+export function placeLabel(p: Place): string {
+  const name = `${p.article ? p.article + ' ' : ''}${p.name}`
+  return p.high ? name : `${name} — site uncertain`
+}
+
 /** [lng, lat] to anchor a river's label: the middle of its longest reach. */
 export function riverLabelPoint(r: River): [number, number] {
   const line = r.paths.reduce((a, b) => (b.length > a.length ? b : a))

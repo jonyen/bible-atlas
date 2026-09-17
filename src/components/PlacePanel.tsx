@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Place } from '../types'
 import type { BookPlace } from '../data/books'
+import { disputedNote } from '../data/disputed'
 import { verseLink } from '../lib/verseLink'
 
 interface PlacePanelProps {
@@ -36,6 +37,7 @@ function openbibleUrl(place: Place): string {
 
 export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) {
   const [allBooks, setAllBooks] = useState(false)
+  const disputed = disputedNote(place.id)
   const testaments = place.ot && place.nt ? 'Old & New Testament' : place.nt ? 'New Testament' : 'Old Testament'
   const books = allBooks ? place.books : place.books.slice(0, BOOKS_SHOWN)
   const hiddenBooks = place.books.length - books.length
@@ -87,10 +89,18 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
         <div>
           <dt>Location</dt>
           <dd title={`OpenBible.info confidence score ${place.score} of 1000`}>
-            {place.high ? 'Confident' : 'Uncertain'}
+            {place.high ? 'Confident' : `Uncertain (${place.score}/1000)`}
           </dd>
         </div>
       </dl>
+
+      {!place.high && (
+        <p className="uncertain-note">
+          <strong>Where this sits on the map is a proposal, not a settled site.</strong>{' '}
+          {disputed ??
+            `OpenBible.info scores this identification ${place.score} out of 1000; the dot marks their best guess.`}
+        </p>
+      )}
 
       {place.books.length > 0 && (
         <p className="books">
