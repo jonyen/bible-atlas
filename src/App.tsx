@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MapView, { type MapViewHandle } from './components/map'
 import { MAP_AVAILABLE, MAP_PROVIDER } from './components/map/config'
 import SearchBox from './components/SearchBox'
@@ -30,6 +30,8 @@ function App() {
   const [book, setBook] = useState<string | null>(bookFromUrl)
   const [bookIndex, setBookIndex] = useState<BookIndex | null>(null)
   const [bookError, setBookError] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
+  const onMapReady = useCallback(() => setMapReady(true), [])
   // A shared link that names a place keeps the map on that place instead of fitting the book.
   const fittedRef = useRef<string | null>(selected ? book : null)
 
@@ -46,10 +48,12 @@ function App() {
       if (!book) fittedRef.current = null
       return
     }
-    if (fittedRef.current === mapBook.name) return
-    fittedRef.current = mapBook.name
-    if (mapBook.places.size) mapRef.current?.fitBook(mapBook)
-  }, [book, mapBook])
+    if (!mapReady || fittedRef.current === mapBook.name) return
+    if (mapBook.places.size) {
+      fittedRef.current = mapBook.name
+      mapRef.current?.fitBook(mapBook)
+    }
+  }, [book, mapBook, mapReady])
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -89,6 +93,7 @@ function App() {
           selected={selected}
           book={mapBook}
           onSelect={setSelected}
+          onReady={onMapReady}
         />
       ) : overLimit ? (
         <div className="no-key">

@@ -14,6 +14,7 @@ export interface MapViewProps {
   selected: Place | null
   book: MapBook | null
   onSelect: (place: Place | null) => void
+  onReady: () => void
 }
 
 export const OT_COLOR = '#c77d0e'

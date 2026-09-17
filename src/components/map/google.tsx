@@ -45,7 +45,7 @@ function fitGoogle(map: google.maps.Map, book: MapBook) {
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, showTerritories, activeCats, selected, book, onSelect },
+  { era, showTerritories, activeCats, selected, book, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -57,11 +57,14 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   useEffect(() => {
     onSelectRef.current = onSelect
   }, [onSelect])
+  const onReadyRef = useRef(onReady)
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
   const rafRef = useRef(0)
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
-  const pendingFitRef = useRef<MapBook | null>(null)
 
   useEffect(() => {
     if (!elRef.current) return
@@ -86,10 +89,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     mapRef.current = map
     recordLoad()
     setReady(true)
-    if (pendingFitRef.current) {
-      fitGoogle(map, pendingFitRef.current)
-      pendingFitRef.current = null
-    }
+    onReadyRef.current()
     const markers = markersRef.current
     return () => {
       for (const { marker } of markers.values()) marker.setMap(null)
@@ -119,7 +119,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       const bounds = map.getBounds()
       if (!bounds) return
       const b = bounds.toJSON()
-      const list = visiblePlaces(b, era, book)
+      const list = visiblePlaces(b, era, book, selected?.id ?? null)
       const markers = markersRef.current
 
       // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
@@ -264,7 +264,6 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       fitBook(book: MapBook) {
         const map = mapRef.current
         if (map) fitGoogle(map, book)
-        else pendingFitRef.current = book
       },
     }),
     [onSelect],

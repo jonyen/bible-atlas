@@ -46,7 +46,7 @@ function fitMapLibre(map: maplibregl.Map, book: MapBook) {
  * Drop-in alternative to the Google backend - switch with VITE_MAP_PROVIDER=maplibre.
  */
 const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreView(
-  { era, showTerritories, activeCats, selected, book, onSelect },
+  { era, showTerritories, activeCats, selected, book, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -57,7 +57,10 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
   const [ready, setReady] = useState(false)
   // Initial center only; later selections move the map through flyTo.
   const startRef = useRef(selected)
-  const pendingFitRef = useRef<MapBook | null>(null)
+  const onReadyRef = useRef(onReady)
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
 
   useEffect(() => {
     if (!elRef.current) return
@@ -124,10 +127,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       if (start) map.easeTo({ center: [start.lng, start.lat], offset: [0, -sheetOffset()], duration: 0 })
       mapRef.current = map
       setReady(true)
-      if (pendingFitRef.current) {
-        fitMapLibre(map, pendingFitRef.current)
-        pendingFitRef.current = null
-      }
+      onReadyRef.current()
     })
     return () => {
       mapRef.current = null
@@ -158,6 +158,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         { south: b.getSouth(), north: b.getNorth(), west: b.getWest(), east: b.getEast() },
         era,
         book,
+        selected?.id ?? null,
       )
       const source = map.getSource(PLACES_SOURCE) as maplibregl.GeoJSONSource
       if (!source) return
@@ -305,7 +306,6 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       fitBook(book: MapBook) {
         const map = mapRef.current
         if (map) fitMapLibre(map, book)
-        else pendingFitRef.current = book
       },
     }),
     [onSelect],
