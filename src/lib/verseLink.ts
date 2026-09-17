@@ -25,5 +25,6 @@ const BOOK_BY_ABBREVIATION: Record<string, string> = {
 export function verseLink(ref: string): string | null {
   const m = /^(.+) (\d+):\d+/.exec(ref)
   const book = m && BOOK_BY_ABBREVIATION[m[1]]
-  return book ? `${READER}/${encodeURIComponent(book)}/${m[2]}` : null
+  // The reader routes with a hash router: /#/Genesis/35, not /Genesis/35.
+  return book ? `${READER}/#/${encodeURIComponent(book)}/${m[2]}` : null
 }
