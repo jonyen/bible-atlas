@@ -11,6 +11,7 @@ import {
   loadPosition,
   savePosition,
   snapToStep,
+  stepBy,
 } from './scrubber'
 
 const key = (book: number, chapter: number, verse: number) =>
@@ -170,5 +171,27 @@ describe('switching axis', () => {
   test('firstStepInEra falls back to the last step for an era with no places', () => {
     const seq = buildSequence(axisKeys(INDEX), 'canonical')
     expect(firstStepInEra(seq, 9)).toBe(key(66, 17, 5))
+  })
+})
+
+describe('stepBy', () => {
+  const steps = [10, 20, 30]
+
+  test('advances to the next step', () => {
+    expect(stepBy(steps, 20, 1)).toBe(30)
+  })
+
+  test('goes back to the previous step', () => {
+    expect(stepBy(steps, 20, -1)).toBe(10)
+  })
+
+  test('stops at the end rather than wrapping round to the start', () => {
+    expect(stepBy(steps, 30, 1)).toBe(30)
+    expect(stepBy(steps, 10, -1)).toBe(10)
+  })
+
+  test('steps from a cursor that sits between steps', () => {
+    expect(stepBy(steps, 25, 1)).toBe(30)
+    expect(stepBy(steps, 25, -1)).toBe(10)
   })
 })

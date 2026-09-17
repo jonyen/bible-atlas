@@ -14,6 +14,7 @@ import {
   fitPadding,
   findPlace,
   journeyFade,
+  labelIds,
   markerStyle,
   placeLabel,
   riverInfoNode,
@@ -145,7 +146,9 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           'text-size': 13,
           'text-offset': [0, 1.1],
           'text-anchor': 'top',
-          'text-allow-overlap': true,
+          // Let labels collide out rather than stack: what fits stays legible.
+          'text-allow-overlap': false,
+          'text-optional': true,
         },
         paint: {
           'text-color': '#2b2b2b',
@@ -247,6 +250,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         selected?.id ?? null,
         journey,
       )
+      const labels = labelIds(list, journey)
       const source = map.getSource(PLACES_SOURCE) as maplibregl.GeoJSONSource
       if (!source) return
       source.setData(
@@ -255,13 +259,14 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
             const { tier, strong } = markerStyle(p, book)
             const sel = selected?.id === p.id
             const fade = journeyFade(p.id, journey)
+            const named = labels.has(p.id)
             return {
               type: 'Feature',
               geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
               properties: {
                 'place-id': p.id,
-                name: placeLabel(p),
-                cur: journey?.current.has(p.id) ? 1 : 0,
+                name: placeLabel(p, labels.size === 1),
+                cur: named ? 1 : 0,
                 color: placeColor(p, era),
                 op: (strong || sel ? 0.95 : 0.55) * fade,
                 stroke: fade,

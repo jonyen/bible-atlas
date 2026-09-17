@@ -1,5 +1,5 @@
 import { ERAS } from '../data/eras'
-import { AXES, eraOfStep, type Axis, type Sequence } from '../lib/scrubber'
+import { AXES, eraOfStep, stepBy, type Axis, type Sequence } from '../lib/scrubber'
 
 interface ScrubberProps {
   axis: Axis
@@ -54,6 +54,15 @@ export default function Scrubber({
   // The range walks step indexes, not raw keys, so every notch reveals something.
   const index = Math.max(0, steps.indexOf(cursor))
   const ticks = eraTicks(sequence)
+  const disabled = loading || steps.length < 2
+
+  /** The arrows move and save in one go: a click is a finished move. */
+  function step(delta: 1 | -1) {
+    const next = stepBy(steps, cursor, delta)
+    if (next === cursor) return
+    onCursor(next)
+    onCommit(next)
+  }
 
   return (
     <section className="filters scrubber">
@@ -76,13 +85,24 @@ export default function Scrubber({
         <p className="fine">That order needs the verse index, which failed to load. Canonical order still works.</p>
       ) : (
         <>
-          <div className="track">
+          <div className="track-row">
+            <button
+              type="button"
+              className="step-btn"
+              onClick={() => step(-1)}
+              disabled={disabled || index === 0}
+              aria-label="Back one step in the story"
+              title="Back one step"
+            >
+              ‹
+            </button>
+            <div className="track">
             <input
               type="range"
               min={0}
               max={Math.max(0, steps.length - 1)}
               value={index}
-              disabled={loading || steps.length < 2}
+              disabled={disabled}
               aria-label="Position in the biblical story"
               aria-valuetext={label}
               onChange={(e) => onCursor(steps[Number(e.target.value)] ?? cursor)}
@@ -94,6 +114,17 @@ export default function Scrubber({
                 <span key={t.era} style={{ left: `${t.pct}%` }} title={ERAS[t.era]?.label} />
               ))}
             </div>
+            </div>
+            <button
+              type="button"
+              className="step-btn"
+              onClick={() => step(1)}
+              disabled={disabled || index === steps.length - 1}
+              aria-label="Forward one step in the story"
+              title="Forward one step"
+            >
+              ›
+            </button>
           </div>
           <p className="cursor-label">{loading ? 'Loading the verse index…' : label}</p>
         </>

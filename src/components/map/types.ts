@@ -32,6 +32,12 @@ export const NT_COLOR = '#1e6fd9'
 export const BOTH_COLOR = '#0e8a7d'
 export const MAX_MARKERS = 1200
 
+/**
+ * How many places the map names at once. An era step reveals hundreds of
+ * places together, and naming them all buries the map under its own labels.
+ */
+export const MAX_LABELS = 8
+
 /** How far a place already passed on the scrubber fades back. */
 export const PAST_FADE = 0.4
 

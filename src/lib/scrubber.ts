@@ -152,6 +152,19 @@ export function snapToStep(cursor: number, steps: number[]): number {
   return best
 }
 
+/**
+ * One step forward or back from where the cursor sits. A cursor between two
+ * steps (a saved position from regenerated data) moves to the step on the side
+ * it is heading for, never past it. Stops at either end rather than wrapping.
+ */
+export function stepBy(steps: number[], cursor: number, delta: 1 | -1): number {
+  if (!steps.length) return cursor
+  const here = snapToStep(cursor, steps)
+  const i = steps.indexOf(here)
+  if (delta === 1 && here < cursor) return steps[Math.min(i + 1, steps.length - 1)]
+  return steps[Math.min(Math.max(i + delta, 0), steps.length - 1)]
+}
+
 export interface Position {
   axis: Axis
   cursor: number

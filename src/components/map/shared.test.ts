@@ -3,8 +3,8 @@ import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
 import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { cameraAt, eraMatch, journeyFade, placeLabel, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
-import { BOTH_COLOR, NT_COLOR, OT_COLOR } from './types'
+import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { BOTH_COLOR, MAX_LABELS, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
 
@@ -192,15 +192,49 @@ describe('riverLabelPoint', () => {
 describe('placeLabel', () => {
   const eden = PLACES.find((p) => p.id === 'af3daeb')!
 
-  it('flags a place whose location the data is unsure of', () => {
-    expect(placeLabel(eden)).toBe('Eden — site uncertain')
+  it('flags an uncertain site when it is the only place named', () => {
+    expect(placeLabel(eden, true)).toBe('Eden — site uncertain')
+  })
+
+  it('drops the caveat when other places are named too, to keep the map readable', () => {
+    expect(placeLabel(eden, false)).toBe('Eden')
   })
 
   it('leaves a confident place with its plain name', () => {
-    expect(placeLabel({ ...jerusalem, high: true })).toBe('Jerusalem')
+    expect(placeLabel({ ...jerusalem, high: true }, true)).toBe('Jerusalem')
   })
 
   it('keeps the article a place is normally read with', () => {
-    expect(placeLabel({ ...jerusalem, high: true, article: 'the' })).toBe('the Jerusalem')
+    expect(placeLabel({ ...jerusalem, high: true, article: 'the' }, true)).toBe('the Jerusalem')
+  })
+})
+
+describe('labelIds', () => {
+  const place = (id: string, score: number, verseCount: number) =>
+    ({ id, score, verseCount }) as Place
+
+  it('names nothing without a journey: the map is not walking the story', () => {
+    expect(labelIds([place('a', 1000, 10)], null).size).toBe(0)
+  })
+
+  it('names the place at the cursor', () => {
+    const journey = { shown: new Set(['a']), current: new Set(['a']) }
+    expect([...labelIds([place('a', 1000, 10)], journey)]).toEqual(['a'])
+  })
+
+  it('caps the names when a whole era arrives at once, keeping the best known places', () => {
+    const list = Array.from({ length: 40 }, (_, i) => place(`p${i}`, i * 10, i))
+    const journey = { shown: new Set(list.map((p) => p.id)), current: new Set(list.map((p) => p.id)) }
+    const ids = labelIds(list, journey)
+    expect(ids.size).toBe(MAX_LABELS)
+    // The most-attested places win the labels; the obscure ones stay bare dots.
+    expect(ids.has('p39')).toBe(true)
+    expect(ids.has('p0')).toBe(false)
+  })
+
+  it('never names a place the story has not reached', () => {
+    const journey = { shown: new Set(['a']), current: new Set(['a']) }
+    const ids = labelIds([place('a', 10, 1), place('b', 1000, 99)], journey)
+    expect(ids.has('b')).toBe(false)
   })
 })

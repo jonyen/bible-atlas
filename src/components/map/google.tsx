@@ -13,6 +13,7 @@ import {
   cameraAt,
   fitPadding,
   journeyFade,
+  labelIds,
   markerStyle,
   placeLabel,
   riverInfoNode,
@@ -28,8 +29,8 @@ import type { MapViewHandle, MapViewProps } from './types'
 
 const RADII = [5, 7, 9] as const
 
-function markerLabel(p: Place): google.maps.MarkerLabel {
-  return { text: placeLabel(p), color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
+function markerLabel(p: Place, alone: boolean): google.maps.MarkerLabel {
+  return { text: placeLabel(p, alone), color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
 }
 
 /** A 1x1 transparent PNG: a marker that is only its label. */
@@ -148,6 +149,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       if (!bounds) return
       const b = bounds.toJSON()
       const list = visiblePlaces(b, era, book, selected?.id ?? null, journey)
+      const labels = labelIds(list, journey)
       const markers = markersRef.current
 
       // Update markers in place: recreating hundreds of them on every pan flickers and is slow.
@@ -164,14 +166,14 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
         const color = placeColor(p, era)
         const { tier, strong } = markerStyle(p, book)
         const fade = journeyFade(p.id, journey)
-        // Only the place at the cursor is named: the story says where it is.
-        const current = Boolean(journey?.current.has(p.id))
+        // Only the places at the cursor are named, and only a handful of them.
+        const current = labels.has(p.id)
         const look = `${color}|${tier}|${strong}|${isSel}|${fade}|${current}`
         const existing = markers.get(p.id)
         if (existing) {
           if (existing.look !== look) {
             existing.marker.setIcon(dotIcon(color, tier, strong, isSel, fade))
-            existing.marker.setLabel(current ? markerLabel(p) : null)
+            existing.marker.setLabel(current ? markerLabel(p, labels.size === 1) : null)
             existing.marker.setZIndex(isSel ? 1000 : tier + 1)
             existing.look = look
           }
@@ -181,7 +183,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
           position: { lat: p.lat, lng: p.lng },
           map,
           icon: dotIcon(color, tier, strong, isSel, fade),
-          label: current ? markerLabel(p) : undefined,
+          label: current ? markerLabel(p, labels.size === 1) : undefined,
           title: `${p.article ? p.article + ' ' : ''}${p.name}`,
           zIndex: isSel ? 1000 : tier + 1,
         })

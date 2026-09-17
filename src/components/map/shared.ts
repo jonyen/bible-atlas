@@ -4,6 +4,7 @@ import { RIVERS, type River } from '../../data/rivers'
 import type { Place, Route, Territory } from '../../types'
 import {
   BOTH_COLOR,
+  MAX_LABELS,
   MAX_MARKERS,
   NT_COLOR,
   OT_COLOR,
@@ -164,13 +165,32 @@ export function routeInfoNode(r: Route): HTMLDivElement {
 }
 
 /**
- * The name to draw beside a marker. Places the data is unsure of say so: the
- * atlas labels the place at the scrubber's cursor, and a bare "Eden" would
- * claim more than OpenBible does — it scores that identification 178 of 1000.
+ * The name to draw beside a marker. When a place stands alone at the cursor —
+ * Eden, on opening — an uncertain site says so, because a bare "Eden" claims
+ * more than OpenBible does; it scores that identification 178 of 1000. Once
+ * several places are named at once the caveat is dropped: repeated down a
+ * screen it reads as noise, and the panel still states it in full.
  */
-export function placeLabel(p: Place): string {
+export function placeLabel(p: Place, alone: boolean): string {
   const name = `${p.article ? p.article + ' ' : ''}${p.name}`
-  return p.high ? name : `${name} — site uncertain`
+  return alone && !p.high ? `${name} — site uncertain` : name
+}
+
+/**
+ * Which of the visible places to name. Only the places at the cursor, and at
+ * most MAX_LABELS of them, best-attested first: an era arrives with hundreds
+ * of places at once, and naming every one hides the map behind its own text.
+ */
+export function labelIds(list: Place[], journey: MapJourney | null): Set<string> {
+  if (!journey) return new Set()
+  const current = list.filter((p) => journey.current.has(p.id))
+  if (current.length <= MAX_LABELS) return new Set(current.map((p) => p.id))
+  return new Set(
+    [...current]
+      .sort((a, b) => b.score * Math.min(b.verseCount, 50) - a.score * Math.min(a.verseCount, 50))
+      .slice(0, MAX_LABELS)
+      .map((p) => p.id),
+  )
 }
 
 /** [lng, lat] to anchor a river's label: the middle of its longest reach. */

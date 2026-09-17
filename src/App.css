@@ -661,9 +661,44 @@ body,
 }
 
 /* Scrubber: the journey through scripture. */
+.scrubber .track-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 12px 0 2px;
+}
+
 .scrubber .track {
   position: relative;
-  margin: 12px 0 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* One place forward or back, for readers who would rather not aim at a handle. */
+.scrubber .step-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin-top: -3px;
+  padding: 0;
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.scrubber .step-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.scrubber .step-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .scrubber input[type='range'] {
