@@ -22,13 +22,18 @@ export function eraMatch(p: Place, era: MapEra): boolean {
   return era === 'ot' ? p.ot : p.nt
 }
 
-/** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. A book replaces the era filter. */
-export function visiblePlaces(bounds: ViewportBounds, era: MapEra, book: MapBook | null = null): Place[] {
+/** Places in view (with fuzzy margin padding), filtered and capped by confidence rank. A book replaces the era filter, but a selected place outside the book still passes so its panel and marker stay in sync. */
+export function visiblePlaces(
+  bounds: ViewportBounds,
+  era: MapEra,
+  book: MapBook | null = null,
+  selectedId: string | null = null,
+): Place[] {
   const latPad = (bounds.north - bounds.south) * 0.25
   const lngPad = (bounds.east - bounds.west) * 0.25
   const list: Place[] = []
   for (const p of PLACES) {
-    if (book ? !book.places.has(p.id) : !eraMatch(p, era)) continue
+    if (book ? !book.places.has(p.id) && p.id !== selectedId : !eraMatch(p, era)) continue
     if (p.lat < bounds.south - latPad || p.lat > bounds.north + latPad) continue
     if (p.lng < bounds.west - lngPad || p.lng > bounds.east + lngPad) continue
     list.push(p)

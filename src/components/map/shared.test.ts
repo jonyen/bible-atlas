@@ -51,6 +51,14 @@ describe('visiblePlaces with a book', () => {
     expect(nt.length).toBeGreaterThan(0)
     expect(nt.every((p) => p.nt)).toBe(true)
   })
+
+  it('still shows a selected place outside the book', () => {
+    const book = toMapBook('John', [{ id: cana.id, count: 4, first: 43002001, refs: [] }])
+    const ids = visiblePlaces(WORLD, 'ot', book, jerusalem.id).map((p) => p.id).sort()
+    expect(ids).toEqual([cana.id, jerusalem.id].sort())
+    // Jerusalem isn't in the book, so it still gets the confidence-based style, not the mentions one.
+    expect(markerStyle({ ...jerusalem, high: true }, book)).toEqual({ tier: 1, strong: true })
+  })
 })
 
 describe('markerStyle', () => {
