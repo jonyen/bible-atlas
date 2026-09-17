@@ -15,7 +15,7 @@ backend is built in as a drop-in alternative.
 - **Testament / timeline filter** — Old Testament, New Testament, or all
 - **Tribe boundaries** — simplified allotments of the twelve tribes (Josh. 13–19)
 - **Name meanings** — the traditional meaning of about three quarters of place names (Bethlehem: "house of bread")
-- **Scripture cross-references** — every verse where a place appears, linking to BibleGateway
+- **Scripture cross-references** — every verse where a place appears, linking to its chapter on [bible.jonyen.com](https://bible.jonyen.com)
 - **Travel routes** — 179 polylines grouped by narrative era (Patriarchs, Exodus, Conquest, Judges, Kingdom, Prophets, Jesus, Acts & Paul)
 
 ## Setup

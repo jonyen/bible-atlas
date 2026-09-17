@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Place } from '../types'
 import type { BookPlace } from '../data/books'
+import { verseLink } from '../lib/verseLink'
 
 interface PlacePanelProps {
   place: Place
@@ -17,8 +18,16 @@ const IN_BOOK_REFS_SHOWN = 10
 const MEANING_NOTE =
   'From STEPBible lexicons (Tyndale House, CC BY 4.0). Traditional glosses; some are uncertain.'
 
-function bgUrl(ref: string): string {
-  return `https://www.biblegateway.com/passage/?search=${encodeURIComponent(ref)}&version=ESV`
+/** A verse reference, linked to its chapter on bible.jonyen.com when the reference is readable. */
+function VerseRef({ refText }: { refText: string }) {
+  const href = verseLink(refText)
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer">
+      {refText}
+    </a>
+  ) : (
+    <>{refText}</>
+  )
 }
 
 function openbibleUrl(place: Place): string {
@@ -116,9 +125,7 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
           <ul className="refs">
             {place.refs.map((r) => (
               <li key={r}>
-                <a href={bgUrl(r)} target="_blank" rel="noreferrer">
-                  {r}
-                </a>
+                <VerseRef refText={r} />
               </li>
             ))}
           </ul>
@@ -142,9 +149,7 @@ function InBookRefs({ refs }: { refs: string[] }) {
       <ul className={`refs${collapsed ? ' collapsed' : ''}`}>
         {refs.map((r) => (
           <li key={r}>
-            <a href={bgUrl(r)} target="_blank" rel="noreferrer">
-              {r}
-            </a>
+            <VerseRef refText={r} />
           </li>
         ))}
       </ul>
