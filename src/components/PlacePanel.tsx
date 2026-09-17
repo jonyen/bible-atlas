@@ -9,6 +9,8 @@ interface PlacePanelProps {
 }
 
 const BOOKS_SHOWN = 6
+/** On phones the "In {Book}" list starts collapsed to this many verses (CSS hides the rest). */
+const IN_BOOK_REFS_SHOWN = 10
 
 const MEANING_NOTE =
   'From STEPBible lexicons (Tyndale House, CC BY 4.0). Traditional glosses; some are uncertain.'
@@ -99,15 +101,7 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
             In {inBook.name}
             <span className="count">{inBook.entry.count}</span>
           </h3>
-          <ul className="refs">
-            {inBook.entry.refs.map((r) => (
-              <li key={r}>
-                <a href={bgUrl(r)} target="_blank" rel="noreferrer">
-                  {r}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <InBookRefs key={`${place.id}:${inBook.name}`} refs={inBook.entry.refs} />
         </>
       )}
 
@@ -135,5 +129,28 @@ export default function PlacePanel({ place, onClose, inBook }: PlacePanelProps) 
         </a>
       </footer>
     </section>
+  )
+}
+
+function InBookRefs({ refs }: { refs: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const hidden = refs.length - IN_BOOK_REFS_SHOWN
+  return (
+    <>
+      <ul className={`refs in-book${expanded ? ' expanded' : ''}`}>
+        {refs.map((r) => (
+          <li key={r}>
+            <a href={bgUrl(r)} target="_blank" rel="noreferrer">
+              {r}
+            </a>
+          </li>
+        ))}
+      </ul>
+      {hidden > 0 && !expanded && (
+        <button type="button" className="text-btn in-book-more" onClick={() => setExpanded(true)}>
+          +{hidden} more
+        </button>
+      )}
+    </>
   )
 }

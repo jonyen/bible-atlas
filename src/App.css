@@ -593,6 +593,18 @@ body,
   .brand span {
     display: none;
   }
+
+  /* Keep IN_BOOK_REFS_SHOWN (PlacePanel.tsx) in sync with n+11. */
+  .refs.in-book:not(.expanded) li:nth-child(n + 11) {
+    display: none;
+  }
+}
+
+/* The "+N more" toggle only matters where the list is collapsed. */
+@media (min-width: 721px) {
+  .in-book-more {
+    display: none;
+  }
 }
 
 /* ---------- Book view ---------- */
