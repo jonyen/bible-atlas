@@ -8,6 +8,8 @@ import {
   eraOfStep,
   eraSegments,
   firstStepInEra,
+  trackLabel,
+  trackLabels,
   buildSequence,
   loadPosition,
   savePosition,
@@ -228,5 +230,56 @@ describe('eraSegments', () => {
   test('has nothing to draw for a sequence with a single step', () => {
     const single = { axis: 'canonical' as const, steps: [5], revealedAt: () => [], revealedThrough: () => [] }
     expect(eraSegments(single)).toEqual([])
+  })
+})
+
+describe('trackLabel', () => {
+  const creation = { era: 0, label: 'Creation & Beginnings', short: 'Creation', approxDate: '', startPct: 0, endPct: 2 }
+
+  test('uses the full name when the segment has room for it', () => {
+    expect(trackLabel(creation, 400)).toBe('Creation & Beginnings')
+  })
+
+  test('falls back to the short name rather than clipping the full one', () => {
+    // "Cr" was what the live bar showed for Creation & Beginnings.
+    expect(trackLabel(creation, 70)).toBe('Creation')
+  })
+
+  test('shows nothing when even the short name will not fit, rather than a stub', () => {
+    expect(trackLabel(creation, 20)).toBe('')
+  })
+})
+
+describe('era short names', () => {
+  test('every era has one, and it is shorter than the full name', () => {
+    for (const s of eraSegments(buildSequence(axisKeys(INDEX), 'eras'))) {
+      expect(s.short.length).toBeGreaterThan(0)
+      expect(s.short.length).toBeLessThanOrEqual(s.label.length)
+    }
+  })
+})
+
+describe('trackLabels', () => {
+  const seg = (label: string, short: string, startPct: number, endPct: number) =>
+    ({ era: 0, label, short, approxDate: '', startPct, endPct })
+
+  test('uses full names when every era has room for one', () => {
+    const segments = [seg('Patriarchs', 'Patriarchs', 0, 50), seg('Exodus & Wilderness', 'Exodus', 50, 100)]
+    expect(trackLabels(segments, 1000)).toEqual(['Patriarchs', 'Exodus & Wilderness'])
+  })
+
+  test('switches the whole track to short names as soon as one era would not fit', () => {
+    // Mixing "Patriarchs" with "Exodus" reads as inconsistent, so it is all or nothing.
+    const segments = [seg('Patriarchs', 'Patriarchs', 0, 50), seg('Exodus & Wilderness', 'Exodus', 50, 100)]
+    expect(trackLabels(segments, 200)).toEqual(['Patriarchs', 'Exodus'])
+    expect(trackLabels([seg('Creation & Beginnings', 'Creation', 0, 50), seg('Judges', 'Judges', 50, 100)], 200)).toEqual([
+      'Creation',
+      'Judges',
+    ])
+  })
+
+  test('leaves an era blank when even its short name has no room', () => {
+    const segments = [seg('Creation & Beginnings', 'Creation', 0, 2), seg('Judges', 'Judges', 2, 100)]
+    expect(trackLabels(segments, 600)).toEqual(['', 'Judges'])
   })
 })

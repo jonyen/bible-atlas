@@ -12,6 +12,8 @@ export interface EraSpan {
 export interface Era {
   id: string
   label: string
+  /** For the scrubber's track, where a narrow era has no room for its full name. */
+  short: string
   /** Conventional dating, for display only — never parsed or compared. */
   approxDate: string
   spans: EraSpan[]
@@ -31,36 +33,42 @@ export const ERAS: Era[] = [
   {
     id: 'creation',
     label: 'Creation & Beginnings',
+    short: 'Creation',
     approxDate: 'before ~2100 BC',
     spans: [{ book: 'Genesis', toChapter: 11 }],
   },
   {
     id: 'patriarchs',
     label: 'Patriarchs',
+    short: 'Patriarchs',
     approxDate: '~2100–1800 BC',
     spans: [{ book: 'Genesis', fromChapter: 12 }, book('Job')],
   },
   {
     id: 'exodus',
     label: 'Exodus & Wilderness',
+    short: 'Exodus',
     approxDate: '~1450–1400 BC',
     spans: ['Exodus', 'Leviticus', 'Numbers', 'Deuteronomy'].map(book),
   },
   {
     id: 'conquest',
     label: 'Conquest of Canaan',
+    short: 'Conquest',
     approxDate: '~1400–1350 BC',
     spans: [book('Joshua')],
   },
   {
     id: 'judges',
     label: 'Judges',
+    short: 'Judges',
     approxDate: '~1350–1050 BC',
     spans: [book('Judges'), book('Ruth'), { book: '1 Samuel', toChapter: 7 }],
   },
   {
     id: 'united',
     label: 'United Kingdom',
+    short: 'Kingdom',
     approxDate: '~1050–930 BC',
     spans: [
       { book: '1 Samuel', fromChapter: 8 },
@@ -74,6 +82,7 @@ export const ERAS: Era[] = [
   {
     id: 'divided',
     label: 'Divided Kingdom & Prophets',
+    short: 'Divided',
     approxDate: '~930–586 BC',
     spans: [
       { book: '1 Kings', fromChapter: 12 },
@@ -88,6 +97,7 @@ export const ERAS: Era[] = [
   {
     id: 'exile',
     label: 'Exile',
+    short: 'Exile',
     approxDate: '586–538 BC',
     spans: [
       { book: '2 Kings', fromChapter: 25 },
@@ -97,18 +107,21 @@ export const ERAS: Era[] = [
   {
     id: 'return',
     label: 'Return',
+    short: 'Return',
     approxDate: '538–430 BC',
     spans: ['Ezra', 'Nehemiah', 'Esther', 'Haggai', 'Zechariah', 'Malachi'].map(book),
   },
   {
     id: 'jesus',
     label: 'Life of Jesus',
+    short: 'Jesus',
     approxDate: '~6 BC–AD 30',
     spans: ['Matthew', 'Mark', 'Luke', 'John'].map(book),
   },
   {
     id: 'church',
     label: 'Early Church',
+    short: 'Church',
     approxDate: 'AD 30–95',
     spans: [
       'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians',

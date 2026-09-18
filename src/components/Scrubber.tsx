@@ -1,4 +1,13 @@
-import { AXES, eraSegments, stepBy, type Axis, type Sequence } from '../lib/scrubber'
+import { useEffect, useRef, useState } from 'react'
+import {
+  AXES,
+  eraSegments,
+  stepBy,
+  trackLabelPx,
+  trackLabels,
+  type Axis,
+  type Sequence,
+} from '../lib/scrubber'
 
 interface ScrubberProps {
   axis: Axis
@@ -42,6 +51,25 @@ export default function Scrubber({
   const segments = eraSegments(sequence)
   const disabled = loading || steps.length < 2
   const progress = steps.length > 1 ? (index / (steps.length - 1)) * 100 : 0
+
+  // Era names are chosen by how much room each era actually gets on screen,
+  // so the track needs its own width, kept current as the window resizes.
+  const current = segments.find((s) => progress >= s.startPct && progress < s.endPct) ?? segments.at(-1)
+  const erasRef = useRef<HTMLDivElement>(null)
+  const [trackPx, setTrackPx] = useState(0)
+  useEffect(() => {
+    const el = erasRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => setTrackPx(entry.contentRect.width))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const labels = trackLabels(segments, trackPx)
+  // How far along the track the current era's name reaches once written out.
+  const currentText = current ? labels[segments.indexOf(current)] || current.short : ''
+  const coveredUntilPct =
+    current && trackPx > 0 ? current.startPct + (trackLabelPx(currentText) / trackPx) * 100 : 0
 
   /** The arrows move and save in one go: a click is a finished move. */
   function step(delta: 1 | -1) {
@@ -94,17 +122,25 @@ export default function Scrubber({
 
         <div className="track">
           {/* The eras, named along the track wherever there is room to name them. */}
-          <div className="eras" aria-hidden>
-            {segments.map((s) => (
-              <span
-                key={s.era}
-                className={`era${progress >= s.startPct && progress < s.endPct ? ' on' : ''}`}
-                style={{ left: `${s.startPct}%`, width: `${s.endPct - s.startPct}%` }}
-                title={`${s.label} · ${s.approxDate}`}
-              >
-                {s.label}
-              </span>
-            ))}
+          <div className="eras" ref={erasRef} aria-hidden>
+            {segments.map((s, i) => {
+              const on = s === current
+              // A neighbour sitting under the current era's widened name stays quiet.
+              const covered =
+                !on && current !== undefined && s.startPct > current.startPct && s.startPct < coveredUntilPct
+              const text = covered ? '' : labels[i]
+              return (
+                <span
+                  key={s.era}
+                  className={`era${on ? ' on' : ''}`}
+                  style={{ left: `${s.startPct}%`, width: `${s.endPct - s.startPct}%` }}
+                  title={`${s.label} · ${s.approxDate}`}
+                >
+                  {/* The era you are in is always named, even where its stretch is too narrow. */}
+                  {text || (on ? s.short : '')}
+                </span>
+              )
+            })}
           </div>
           <input
             type="range"

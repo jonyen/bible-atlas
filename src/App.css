@@ -778,6 +778,11 @@ body,
 }
 
 .scrubber-bar .era.on {
+  /* The current era may be too narrow for its name: let it widen over its
+     neighbour, on the bar's own background, rather than go unnamed. */
+  z-index: 1;
+  min-width: max-content;
+  background: var(--panel);
   color: var(--accent);
   font-weight: 600;
   border-left-color: var(--accent);
