@@ -778,6 +778,11 @@ body,
 }
 
 .scrubber-bar .era.on {
+  /* The current era may be too narrow for its name: let it widen over its
+     neighbour, on the bar's own background, rather than go unnamed. */
+  z-index: 1;
+  min-width: max-content;
+  background: var(--panel);
   color: var(--accent);
   font-weight: 600;
   border-left-color: var(--accent);
@@ -866,4 +871,28 @@ body,
 
 .place-photo .photo-credit {
   color: var(--muted);
+}
+
+/* Names Google draws on the map. Its labels have no halo option, so the outline
+   is a stack of pale shadows: enough to lift a name off hill shading and water. */
+.map-label {
+  text-shadow:
+    0 0 2px #fffdf8,
+    0 0 2px #fffdf8,
+    0 0 3px #fffdf8,
+    1px 1px 0 #fffdf8,
+    -1px -1px 0 #fffdf8,
+    1px -1px 0 #fffdf8,
+    -1px 1px 0 #fffdf8;
+}
+
+/* A river's name on the Google map, rotated along the river by its overlay. */
+.river-label {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  transform-origin: center;
 }

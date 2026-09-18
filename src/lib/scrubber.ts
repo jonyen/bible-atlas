@@ -143,6 +143,7 @@ export function firstStepInEra(sequence: Sequence, era: number): number {
 export interface EraSegment {
   era: number
   label: string
+  short: string
   approxDate: string
   /** Where the era's stretch of the track begins and ends, 0–100. */
   startPct: number
@@ -174,10 +175,49 @@ export function eraSegments(sequence: Sequence): EraSegment[] {
   return starts.map((start, i) => ({
     era: start.era,
     label: ERAS[start.era]?.label ?? '',
+    short: ERAS[start.era]?.short ?? '',
     approxDate: ERAS[start.era]?.approxDate ?? '',
     startPct: start.pct,
     endPct: starts[i + 1]?.pct ?? 100,
   }))
+}
+
+/** Rough width of one character of the track's era labels, plus the segment's padding. */
+const LABEL_CHAR_PX = 6
+const LABEL_PAD_PX = 10
+
+/**
+ * What to write in an era's stretch of the track, given how wide it is on
+ * screen. The full name when it fits, the short one when it does not, and
+ * nothing when neither does — a clipped "Cr" is worse than a bare boundary,
+ * and the era still names itself on hover and in the label above the track.
+ */
+/** On-screen width of a track label, by the same estimate trackLabel uses. */
+export function trackLabelPx(text: string): number {
+  return text ? text.length * LABEL_CHAR_PX + LABEL_PAD_PX : 0
+}
+
+export function trackLabel(segment: EraSegment, widthPx: number): string {
+  const fits = (text: string) => text.length * LABEL_CHAR_PX + LABEL_PAD_PX <= widthPx
+  if (fits(segment.label)) return segment.label
+  if (fits(segment.short)) return segment.short
+  return ''
+}
+
+/**
+ * Labels for the whole track at once. One form throughout: full names only if
+ * every era has room for its own, otherwise short names everywhere — a track
+ * reading "Patriarchs · Exodus · United Kingdom · Divided" mixes registers and
+ * looks broken. An era with no room even for its short name stays blank.
+ */
+export function trackLabels(segments: EraSegment[], trackPx: number): string[] {
+  const widthOf = (s: EraSegment) => ((s.endPct - s.startPct) / 100) * trackPx
+  const fits = (text: string, px: number) => trackLabelPx(text) <= px
+  const allFull = segments.every((s) => fits(s.label, widthOf(s)))
+  return segments.map((s) => {
+    if (allFull) return s.label
+    return fits(s.short, widthOf(s)) ? s.short : ''
+  })
 }
 
 /** The step at or below `cursor`, for a cursor that no longer lands on one. */

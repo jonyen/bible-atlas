@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { TERRITORIES } from '../../data'
-import { RIVERS, RIVER_COLOR } from '../../data/rivers'
+import { RIVERS, RIVER_COLOR, type River } from '../../data/rivers'
 import { loadRoutes } from '../../data/routes'
 import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
@@ -17,7 +17,9 @@ import {
   markerStyle,
   placeLabel,
   riverInfoNode,
-  riverLabelPoint,
+  readableAngle,
+  riverLabel,
+  riverLabelSpan,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -29,13 +31,62 @@ import type { MapViewHandle, MapViewProps } from './types'
 
 const RADII = [5, 7, 9] as const
 
+/** A place's name, drawn with a pale outline (App.css `.map-label`) so it reads over terrain. */
 function markerLabel(p: Place, alone: boolean): google.maps.MarkerLabel {
-  return { text: placeLabel(p, alone), color: '#2b2b2b', fontSize: '13px', fontWeight: '600' }
+  return {
+    text: placeLabel(p, alone),
+    color: '#1f1b16',
+    fontSize: '13px',
+    fontWeight: '700',
+    className: 'map-label',
+  }
 }
 
-/** A 1x1 transparent PNG: a marker that is only its label. */
-const BLANK_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+/**
+ * A river's name laid along the river. Google has no text-on-line and a
+ * marker's label is always level, so this is a small overlay of our own: the
+ * name, rotated on every redraw to the river's direction at that point on
+ * screen, which also keeps it right as the map zooms.
+ *
+ * Built on demand because `google.maps.OverlayView` only exists once the Maps
+ * script has loaded, after this module is evaluated.
+ */
+function riverLabelOverlay(river: River, map: google.maps.Map): google.maps.OverlayView {
+  class RiverLabel extends google.maps.OverlayView {
+    private el: HTMLDivElement | null = null
+
+    onAdd() {
+      const el = document.createElement('div')
+      el.className = 'river-label map-label'
+      el.style.color = RIVER_COLOR
+      el.textContent = riverLabel(river)
+      this.el = el
+      this.getPanes()?.overlayLayer.appendChild(el)
+    }
+
+    draw() {
+      const projection = this.getProjection()
+      if (!projection || !this.el) return
+      const toPx = ([lng, lat]: [number, number]) =>
+        projection.fromLatLngToDivPixel(new google.maps.LatLng(lat, lng))
+      const [before, at, after] = riverLabelSpan(river).map(toPx)
+      if (!before || !at || !after) return
+      const angle = readableAngle(after.x - before.x, after.y - before.y)
+      this.el.style.left = `${at.x}px`
+      this.el.style.top = `${at.y}px`
+      this.el.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`
+    }
+
+    onRemove() {
+      this.el?.remove()
+      this.el = null
+    }
+  }
+
+  const overlay = new RiverLabel()
+  overlay.setMap(map)
+  return overlay
+}
 
 function dotIcon(
   color: string,
@@ -56,6 +107,9 @@ function dotIcon(
     size: new google.maps.Size(r * 2, r * 2),
     scaledSize: new google.maps.Size(r * 2, r * 2),
     anchor: new google.maps.Point(r, r),
+    // Google centres a marker's label on its icon by default, which writes the
+    // name straight over the dot; hang it just below instead.
+    labelOrigin: new google.maps.Point(r, r * 2 + 9),
   }
 }
 
@@ -250,20 +304,9 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     if (!ready || !map) return
     if (!showRivers) return
     const lines: google.maps.Polyline[] = []
-    const labels: google.maps.Marker[] = []
+    const labels: google.maps.OverlayView[] = []
     for (const river of RIVERS) {
-      const [lng, lat] = riverLabelPoint(river)
-      labels.push(
-        new google.maps.Marker({
-          position: { lat, lng },
-          map,
-          clickable: false,
-          // An empty icon leaves just the label: Google draws no text on a line.
-          icon: { url: BLANK_PIXEL, size: new google.maps.Size(1, 1) },
-          label: { text: river.name, color: RIVER_COLOR, fontSize: '12px', fontWeight: '600' },
-          zIndex: 0,
-        }),
-      )
+      labels.push(riverLabelOverlay(river, map))
       for (const path of river.paths) {
         const line = new google.maps.Polyline({
           path: path.map(([lng, lat]: [number, number]) => ({ lat, lng })),

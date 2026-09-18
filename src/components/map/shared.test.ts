@@ -3,7 +3,7 @@ import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
 import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, riverBounds, riverLabelPoint, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, readableAngle, riverBounds, riverLabel, riverLabelPoint, riverLabelSpan, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
 import { BOTH_COLOR, MAX_LABELS, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
@@ -255,5 +255,46 @@ describe('labelIds', () => {
     const ids = labelIds(list, journey, 'p0')
     expect(ids.has('p0')).toBe(true)
     expect(ids.size).toBeLessThanOrEqual(MAX_LABELS + 1)
+  })
+})
+
+describe('riverLabel', () => {
+  it('names a river as a river, so it is not read as a place', () => {
+    const tigris = RIVERS.find((r) => r.id === 'tigris')!
+    expect(riverLabel(tigris)).toBe('Tigris River')
+  })
+
+  it('does not double up if a name already says River', () => {
+    const tigris = RIVERS.find((r) => r.id === 'tigris')!
+    expect(riverLabel({ ...tigris, name: 'Tigris River' })).toBe('Tigris River')
+  })
+})
+
+describe('readableAngle', () => {
+  it('follows a river running left to right unchanged', () => {
+    expect(readableAngle(10, 10)).toBeCloseTo(45)
+  })
+
+  it('turns text that would read upside down the right way up', () => {
+    // A river drawn right to left points the same way as one drawn left to right.
+    expect(readableAngle(-10, -10)).toBeCloseTo(45)
+    expect(readableAngle(-10, 0)).toBeCloseTo(0)
+  })
+
+  it('keeps every angle within a quarter turn either side of level', () => {
+    for (const [dx, dy] of [[1, 5], [-1, 5], [1, -5], [-1, -5], [0, 1], [0, -1]]) {
+      const angle = readableAngle(dx, dy)
+      expect(angle).toBeGreaterThan(-90.0001)
+      expect(angle).toBeLessThanOrEqual(90)
+    }
+  })
+})
+
+describe('riverLabelSpan', () => {
+  it('takes the points either side of the label, for the direction there', () => {
+    const river = RIVERS.find((r) => r.id === 'euphrates')!
+    const [before, at, after] = riverLabelSpan(river)
+    expect(at).toEqual(riverLabelPoint(river))
+    expect(before).not.toEqual(after)
   })
 })
