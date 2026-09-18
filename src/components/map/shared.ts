@@ -216,17 +216,50 @@ export function labelIds(
   return ids
 }
 
+/** A river's name as the map writes it: "Tigris River", so it is not read as a place. */
+export function riverLabel(r: River): string {
+  return /\briver$/i.test(r.name) ? r.name : `${r.name} River`
+}
+
 /** [lng, lat] to anchor a river's label: the middle of its longest reach. */
 export function riverLabelPoint(r: River): [number, number] {
   const line = r.paths.reduce((a, b) => (b.length > a.length ? b : a))
   return line[Math.floor(line.length / 2)]
 }
 
+/** How many vertices either side of the label point set the river's direction there. */
+const SPAN_POINTS = 6
+
+/**
+ * The label point with a vertex a little way before and after it on the same
+ * reach — enough to read which way the river runs there without being thrown
+ * by a single kink in the line.
+ */
+export function riverLabelSpan(r: River): [[number, number], [number, number], [number, number]] {
+  const line = r.paths.reduce((a, b) => (b.length > a.length ? b : a))
+  const i = Math.floor(line.length / 2)
+  const before = line[Math.max(0, i - SPAN_POINTS)]
+  const after = line[Math.min(line.length - 1, i + SPAN_POINTS)]
+  return [before, line[i], after]
+}
+
+/**
+ * Rotation in degrees for text laid along a direction on screen (y down),
+ * turned so it never reads upside down: a river flowing right to left gets the
+ * same angle as one flowing left to right.
+ */
+export function readableAngle(dx: number, dy: number): number {
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI
+  if (angle > 90) angle -= 180
+  if (angle <= -90) angle += 180
+  return angle
+}
+
 export function riverInfoNode(r: River): HTMLDivElement {
   const el = document.createElement('div')
   el.className = 'iw'
   const called = r.scriptureName ? ` · called ${r.scriptureName} in Genesis 2` : ''
-  el.innerHTML = `<h3>${r.name}</h3><p class="iw-sub">River${called}</p><p>${r.note}</p>`
+  el.innerHTML = `<h3>${riverLabel(r)}</h3><p class="iw-sub">${called.replace(/^ · /, '') || 'River'}</p><p>${r.note}</p>`
   return el
 }
 

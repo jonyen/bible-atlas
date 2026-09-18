@@ -18,6 +18,7 @@ import {
   markerStyle,
   placeLabel,
   riverInfoNode,
+  riverLabel,
   placeColor,
   sheetOffset,
   routeInfoNode,
@@ -143,6 +144,9 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
         filter: ['==', ['get', 'cur'], 1],
         layout: {
           'text-field': ['get', 'name'],
+          // Bold, from the fonts the style already serves, so the name holds up
+          // against hill shading and water rather than dissolving into them.
+          'text-font': ['Noto Sans Bold'],
           'text-size': 13,
           'text-offset': [0, 1.1],
           'text-anchor': 'top',
@@ -151,9 +155,10 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           'text-optional': true,
         },
         paint: {
-          'text-color': '#2b2b2b',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.8,
+          'text-color': '#1f1b16',
+          'text-halo-color': '#fffdf8',
+          'text-halo-width': 2.4,
+          'text-halo-blur': 0.4,
         },
       })
       map.addSource(ROUTES_SOURCE, { type: 'geojson', data: fc([]) })
@@ -210,7 +215,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           ? RIVERS.map((r) => ({
               type: 'Feature' as const,
               geometry: { type: 'MultiLineString' as const, coordinates: r.paths },
-              properties: { 'river-id': r.id, name: r.name },
+              properties: { 'river-id': r.id, name: riverLabel(r) },
             }))
           : [],
       ),
