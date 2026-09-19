@@ -22,6 +22,8 @@ import {
   riverLabelSpan,
   placeColor,
   sheetOffset,
+  ROUTE_BADGE_R,
+  routeBadgeSvg,
   routeInfoNode,
   routeLabelPoint,
   territoryInfoNode,
@@ -270,32 +272,49 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     const map = mapRef.current
     if (!ready || !map) return
     const polylines: google.maps.Polyline[] = []
+    const badges: google.maps.Marker[] = []
     let cancelled = false
     if (activeCats.length) {
       loadRoutes().then((routes) => {
         if (cancelled) return
         for (const r of routes) {
           if (!activeCats.includes(r.cat)) continue
+          const color = CAT_COLORS[r.cat] ?? '#757575'
+          const [lng, lat] = routeLabelPoint(r)
+          const open = () => showInfo(routeInfoNode(r), lat, lng)
           for (const seg of r.paths) {
             const poly = new google.maps.Polyline({
               path: seg.map(([lng, lat]) => ({ lat, lng })),
-              strokeColor: CAT_COLORS[r.cat] ?? '#757575',
+              strokeColor: color,
               strokeOpacity: 0.85,
               strokeWeight: 3.2,
               map,
             })
-            poly.addListener('click', () => {
-              const [lng, lat] = routeLabelPoint(r)
-              showInfo(routeInfoNode(r), lat, lng)
-            })
+            poly.addListener('click', open)
             polylines.push(poly)
           }
+          // The journey's number on a disc, so a set of routes reads in story order.
+          const d = ROUTE_BADGE_R * 2
+          const badge = new google.maps.Marker({
+            position: { lat, lng },
+            map,
+            zIndex: 500,
+            icon: {
+              url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(routeBadgeSvg(r.num, color))}`,
+              size: new google.maps.Size(d, d),
+              scaledSize: new google.maps.Size(d, d),
+              anchor: new google.maps.Point(ROUTE_BADGE_R, ROUTE_BADGE_R),
+            },
+          })
+          badge.addListener('click', open)
+          badges.push(badge)
         }
       })
     }
     return () => {
       cancelled = true
       polylines.forEach((p) => p.setMap(null))
+      badges.forEach((b) => b.setMap(null))
     }
   }, [ready, activeCats])
 

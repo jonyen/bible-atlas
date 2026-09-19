@@ -174,8 +174,17 @@ export function routeLabelPoint(r: Route): [number, number] {
 export function routeInfoNode(r: Route): HTMLDivElement {
   const el = document.createElement('div')
   el.className = 'iw'
-  el.innerHTML = `<h3>${r.name}</h3><p class="iw-sub">${r.cat}</p>`
+  el.innerHTML = `<h3>${r.num}. ${r.name}</h3><p class="iw-sub">${r.cat} · journey ${r.num} of the atlas, in story order</p>`
   return el
+}
+
+export const ROUTE_BADGE_R = 10
+
+/** A numbered disc in the route's colour, drawn at its label point so journeys read in order. */
+export function routeBadgeSvg(num: number, color: string): string {
+  const r = ROUTE_BADGE_R
+  const size = num >= 100 ? 9 : 11
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}"><circle cx="${r}" cy="${r}" r="${r - 1}" fill="${color}" stroke="#ffffff" stroke-width="1.5"/><text x="${r}" y="${r}" dy="0.36em" text-anchor="middle" font-family="system-ui, sans-serif" font-size="${size}" font-weight="700" fill="#ffffff">${num}</text></svg>`
 }
 
 /**

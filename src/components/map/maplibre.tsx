@@ -21,6 +21,7 @@ import {
   riverLabel,
   placeColor,
   sheetOffset,
+  ROUTE_BADGE_R,
   routeInfoNode,
   routeLabelPoint,
   territoryInfoNode,
@@ -38,6 +39,9 @@ const RIVERS_LABEL = 'atlas-rivers-label'
 const PLACES_LABEL = 'atlas-places-label'
 const ROUTES_SOURCE = 'atlas-routes'
 const ROUTES_LAYER = 'atlas-routes-line'
+const ROUTE_NUMS_SOURCE = 'atlas-route-numbers'
+const ROUTE_NUMS_DISC = 'atlas-route-numbers-disc'
+const ROUTE_NUMS_TEXT = 'atlas-route-numbers-text'
 const TERRITORIES_SOURCE = 'atlas-territories'
 const TERRITORIES_FILL = 'atlas-territories-fill'
 const TERRITORIES_LINE = 'atlas-territories-line'
@@ -172,6 +176,32 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
           'line-opacity': 0.85,
         },
       })
+      // Each journey's number on a disc, so a set of routes reads in story order.
+      map.addSource(ROUTE_NUMS_SOURCE, { type: 'geojson', data: fc([]) })
+      map.addLayer({
+        id: ROUTE_NUMS_DISC,
+        type: 'circle',
+        source: ROUTE_NUMS_SOURCE,
+        paint: {
+          'circle-color': ['get', 'color'],
+          'circle-radius': ROUTE_BADGE_R,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1.5,
+        },
+      })
+      map.addLayer({
+        id: ROUTE_NUMS_TEXT,
+        type: 'symbol',
+        source: ROUTE_NUMS_SOURCE,
+        layout: {
+          'text-field': ['to-string', ['get', 'num']],
+          'text-size': 11,
+          'text-font': ['Noto Sans Bold'],
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        },
+        paint: { 'text-color': '#ffffff' },
+      })
       map.addSource(TERRITORIES_SOURCE, { type: 'geojson', data: fc([]) })
       map.addLayer({
         id: TERRITORIES_FILL,
@@ -303,6 +333,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     const map = mapRef.current
     if (!ready || !map) return
     const source = map.getSource(ROUTES_SOURCE) as maplibregl.GeoJSONSource
+    const numSource = map.getSource(ROUTE_NUMS_SOURCE) as maplibregl.GeoJSONSource
     if (!source) return
     if (!activeCats.length) {
       source.setData(fc([]))
@@ -312,16 +343,24 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     loadRoutes().then((routes) => {
       if (cancelled) return
       const features: GeoJSON.Feature[] = []
+      const numbers: GeoJSON.Feature[] = []
       for (const r of routes) {
         routesByIdRef.current.set(r.id, r)
         if (!activeCats.includes(r.cat)) continue
+        const color = CAT_COLORS[r.cat] ?? '#757575'
         features.push({
           type: 'Feature',
           geometry: { type: 'MultiLineString', coordinates: r.paths },
-          properties: { color: CAT_COLORS[r.cat] ?? '#757575', 'route-id': r.id },
+          properties: { color, 'route-id': r.id },
+        })
+        numbers.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: routeLabelPoint(r) },
+          properties: { color, num: r.num, 'route-id': r.id },
         })
       }
       source.setData(fc(features))
+      numSource.setData(fc(numbers))
     })
     return () => {
       cancelled = true
@@ -351,7 +390,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     function onClick(e: maplibregl.MapMouseEvent) {
       const feats = map.queryRenderedFeatures(e.point, {
         // Places first, then routes, then rivers: the smallest target wins a shared pixel.
-        layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL, TERRITORIES_LINE, RIVERS_LAYER],
+        layers: [PLACES_LAYER, ROUTE_NUMS_DISC, ROUTES_LAYER, TERRITORIES_FILL, TERRITORIES_LINE, RIVERS_LAYER],
       })
       const f = feats[0]
       if (!f) {
@@ -368,7 +407,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       } else if (layer === RIVERS_LAYER) {
         const river = RIVERS.find((r) => r.id === f.properties?.['river-id'])
         if (river) showPopup(riverInfoNode(river), e.lngLat.lng, e.lngLat.lat)
-      } else if (layer === ROUTES_LAYER) {
+      } else if (layer === ROUTES_LAYER || layer === ROUTE_NUMS_DISC) {
         const r = routesByIdRef.current.get(f.properties?.['route-id'])
         if (!r) return
         const [lng, lat] = routeLabelPoint(r)
@@ -382,7 +421,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
 
     function onMove(e: maplibregl.MapMouseEvent) {
       const feats = map.queryRenderedFeatures(e.point, {
-        layers: [PLACES_LAYER, ROUTES_LAYER, TERRITORIES_FILL, RIVERS_LAYER],
+        layers: [PLACES_LAYER, ROUTE_NUMS_DISC, ROUTES_LAYER, TERRITORIES_FILL, RIVERS_LAYER],
       })
       map.getCanvas().style.cursor = feats.length ? 'pointer' : ''
     }

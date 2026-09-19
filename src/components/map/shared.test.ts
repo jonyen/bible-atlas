@@ -3,7 +3,7 @@ import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
 import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, readableAngle, riverBounds, riverLabel, riverLabelPoint, riverLabelSpan, placeColor, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, readableAngle, riverBounds, riverLabel, riverLabelPoint, riverLabelSpan, placeColor, routeBadgeSvg, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
 import { BOTH_COLOR, MAX_LABELS, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
@@ -296,5 +296,18 @@ describe('riverLabelSpan', () => {
     const [before, at, after] = riverLabelSpan(river)
     expect(at).toEqual(riverLabelPoint(river))
     expect(before).not.toEqual(after)
+  })
+})
+
+describe('route numbers', () => {
+  it('draws the number on a disc in the route colour', () => {
+    const svg = routeBadgeSvg(42, '#ef6c00')
+    expect(svg).toContain('>42</text>')
+    expect(svg).toContain('fill="#ef6c00"')
+  })
+
+  it('shrinks three-digit numbers to fit the disc', () => {
+    expect(routeBadgeSvg(9, '#000')).toContain('font-size="11"')
+    expect(routeBadgeSvg(179, '#000')).toContain('font-size="9"')
   })
 })
