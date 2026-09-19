@@ -9,7 +9,15 @@ import PlacePanel from './components/PlacePanel'
 import { byId } from './data'
 import { EDEN_RIVERS } from './data/rivers'
 import { riverBounds } from './components/map/shared'
-import { bookFromSlug, bookSlug, loadBookIndex, toMapBook, type BookIndex } from './data/books'
+import {
+  BOOK_ROUTE_CATS,
+  bookFromSlug,
+  bookSlug,
+  loadBookIndex,
+  routeCatsFor,
+  toMapBook,
+  type BookIndex,
+} from './data/books'
 import { debounce } from './lib/debounce'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import {
@@ -163,6 +171,9 @@ function App() {
 
   const bookPlaces = book && bookIndex ? bookIndex[book] : null
   const mapBook = useMemo(() => (book && bookPlaces ? toMapBook(book, bookPlaces) : null), [book, bookPlaces])
+  // Some books draw their journeys (the Exodus route for Exodus and Leviticus) without a toggle.
+  const bookCats = book ? BOOK_ROUTE_CATS[book] ?? [] : []
+  const shownCats = useMemo(() => routeCatsFor(book, activeCats), [book, activeCats])
 
   useEffect(() => {
     if (!mapBook) {
@@ -212,7 +223,7 @@ function App() {
           baseMap={baseMap}
           showTerritories={showTerritories}
           showRivers={showRivers}
-          activeCats={activeCats}
+          activeCats={shownCats}
           selected={selected}
           book={mapBook}
           journey={journey}
@@ -259,7 +270,8 @@ function App() {
         onTerritories={setShowTerritories}
         showRivers={showRivers}
         onRivers={setShowRivers}
-        activeCats={activeCats}
+        activeCats={shownCats}
+        bookCats={bookCats}
         onToggleCat={toggleCat}
         book={book}
         bookPlaces={bookPlaces}

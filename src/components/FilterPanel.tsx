@@ -18,6 +18,8 @@ interface FilterPanelProps {
   showRivers: boolean
   onRivers: (v: boolean) => void
   activeCats: string[]
+  /** Categories the open book always shows; their toggles are locked on. */
+  bookCats: readonly string[]
   onToggleCat: (cat: string) => void
   book: string | null
   bookPlaces: BookPlace[] | null
@@ -39,6 +41,7 @@ export default function FilterPanel({
   showRivers,
   onRivers,
   activeCats,
+  bookCats,
   onToggleCat,
   book,
   bookPlaces,
@@ -194,12 +197,14 @@ export default function FilterPanel({
             <ul className="route-toggles">
               {ROUTE_CATS.map((cat) => {
                 const on = activeCats.includes(cat)
+                const locked = bookCats.includes(cat)
                 return (
                   <li key={cat}>
-                    <label className={on ? 'on' : ''}>
+                    <label className={on ? 'on' : ''} title={locked ? `Always shown for ${book}` : undefined}>
                       <input
                         type="checkbox"
                         checked={on}
+                        disabled={locked}
                         onChange={() => onToggleCat(cat)}
                       />
                       <span

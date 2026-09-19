@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { byId } from '.'
+import { ROUTE_CATS } from '../types'
 import {
   BOOK_NAMES,
   NT_BOOKS,
   OT_BOOKS,
   TOP_N,
+  BOOK_ROUTE_CATS,
   bookFromSlug,
   bookSlug,
   chapterOf,
   countTier,
   loadBookIndex,
+  routeCatsFor,
   storyOrder,
   toMapBook,
   type BookPlace,
@@ -97,5 +100,29 @@ describe('books.json', () => {
 
   it('memoizes the loader', () => {
     expect(loadBookIndex()).toBe(loadBookIndex())
+  })
+})
+
+describe('routeCatsFor', () => {
+  it('draws the Exodus route for Exodus and Leviticus', () => {
+    expect(routeCatsFor('Exodus', [])).toEqual(['Exodus & Wilderness'])
+    expect(routeCatsFor('Leviticus', [])).toEqual(['Exodus & Wilderness'])
+  })
+
+  it('keeps the user toggles and adds nothing for other books or no book', () => {
+    expect(routeCatsFor('Genesis', ['Judges'])).toEqual(['Judges'])
+    expect(routeCatsFor(null, ['Judges'])).toEqual(['Judges'])
+  })
+
+  it('does not duplicate a category the user already toggled', () => {
+    expect(routeCatsFor('Exodus', ['Exodus & Wilderness', 'Judges'])).toEqual([
+      'Exodus & Wilderness',
+      'Judges',
+    ])
+  })
+
+  it('only names real route categories', () => {
+    for (const cats of Object.values(BOOK_ROUTE_CATS))
+      for (const c of cats) expect(ROUTE_CATS).toContain(c)
   })
 })
