@@ -8,17 +8,22 @@ import {
   storyOrder,
   type BookPlace,
 } from '../data/books'
-import type { Place } from '../types'
+import type { Place, Route } from '../types'
+import { journeyColor } from '../data/bookRoutes'
 
 interface BookSectionProps {
   book: string | null
   places: BookPlace[] | null
   error: boolean
+  journeys: Route[]
+  showJourneys: boolean
+  onShowJourneys: (v: boolean) => void
+  onPickRoute: (r: Route) => void
   onBook: (name: string | null) => void
   onPick: (place: Place) => void
 }
 
-export default function BookSection({ book, places, error, onBook, onPick }: BookSectionProps) {
+export default function BookSection({ book, places, error, journeys, showJourneys, onShowJourneys, onPickRoute, onBook, onPick }: BookSectionProps) {
   return (
     <section className="filters">
       <h2>Book</h2>
@@ -43,6 +48,9 @@ export default function BookSection({ book, places, error, onBook, onPick }: Boo
       {book && error && <p className="fine">Couldn't load book data.</p>}
       {book && !error && !places && <p className="fine">Loading…</p>}
       {book && places && <BookPlaces key={book} book={book} places={places} onPick={onPick} />}
+      {book && journeys.length > 0 && (
+        <BookJourneys journeys={journeys} shown={showJourneys} onShown={onShowJourneys} onPick={onPickRoute} />
+      )}
     </section>
   )
 }
@@ -88,5 +96,39 @@ function BookPlaces({ book, places, onPick }: { book: string; places: BookPlace[
         </button>
       )}
     </>
+  )
+}
+
+function BookJourneys({
+  journeys,
+  shown,
+  onShown,
+  onPick,
+}: {
+  journeys: Route[]
+  shown: boolean
+  onShown: (v: boolean) => void
+  onPick: (r: Route) => void
+}) {
+  return (
+    <div className="book-journeys">
+      <label className="journeys-toggle">
+        <input type="checkbox" checked={shown} onChange={(e) => onShown(e.target.checked)} />
+        Show {journeys.length === 1 ? 'its journey' : `its ${journeys.length} journeys`} on the map
+      </label>
+      <ol className="book-places">
+        {journeys.map((r, i) => (
+          <li key={r.id}>
+            <button type="button" onClick={() => onPick(r)}>
+              <span className="rn" style={{ background: journeyColor(i) }} aria-hidden>
+                {r.num}
+              </span>
+              <span className="bp-name">{r.name}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      <p className="fine">Numbers follow the Bible’s story order. Click a journey to frame it.</p>
+    </div>
   )
 }

@@ -4,7 +4,7 @@ import { RIVERS, RIVER_COLOR, type River } from '../../data/rivers'
 import { loadRoutes } from '../../data/routes'
 import { recordLoad } from '../../lib/usage'
 import { CAT_COLORS } from '../../types'
-import type { Place } from '../../types'
+import type { Place, Route } from '../../types'
 import type { MapBook } from '../../data/books'
 import { googleStyles } from './basemap'
 import {
@@ -24,6 +24,7 @@ import {
   sheetOffset,
   ROUTE_BADGE_R,
   routeBadgeSvg,
+  routeBounds,
   routeInfoNode,
   routeLabelPoint,
   territoryInfoNode,
@@ -125,7 +126,7 @@ function fitGoogle(map: google.maps.Map, book: MapBook) {
  * tribal polygons, all clickable with an InfoWindow.
  */
 const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
-  { era, baseMap, showTerritories, showRivers, activeCats, selected, book, journey, onSelect, onReady },
+  { era, baseMap, showTerritories, showRivers, activeCats, routes, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -186,7 +187,8 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
   function showInfo(node: HTMLElement, lat: number, lng: number) {
     const map = mapRef.current
     if (!map) return
-    if (!infoRef.current) infoRef.current = new google.maps.InfoWindow()
+    // No auto-pan: the window opens where the click landed and the map stays put.
+    if (!infoRef.current) infoRef.current = new google.maps.InfoWindow({ disableAutoPan: true })
     infoRef.current.setContent(node)
     infoRef.current.setPosition({ lat, lng })
     infoRef.current.open(map)
@@ -274,14 +276,18 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
     const polylines: google.maps.Polyline[] = []
     const badges: google.maps.Marker[] = []
     let cancelled = false
-    if (activeCats.length) {
-      loadRoutes().then((routes) => {
+    if (activeCats.length || routes.length) {
+      loadRoutes().then((all) => {
         if (cancelled) return
-        for (const r of routes) {
-          if (!activeCats.includes(r.cat)) continue
-          const color = CAT_COLORS[r.cat] ?? '#757575'
+        const forced = new Map(routes.map((d) => [d.route.id, d.color]))
+        for (const r of all) {
+          if (!activeCats.includes(r.cat) && !forced.has(r.id)) continue
+          const color = forced.get(r.id) ?? CAT_COLORS[r.cat] ?? '#757575'
           const [lng, lat] = routeLabelPoint(r)
-          const open = () => showInfo(routeInfoNode(r), lat, lng)
+          const open = (e?: google.maps.MapMouseEvent) => {
+            const at = e?.latLng
+            showInfo(routeInfoNode(r), at ? at.lat() : lat, at ? at.lng() : lng)
+          }
           for (const seg of r.paths) {
             const poly = new google.maps.Polyline({
               path: seg.map(([lng, lat]) => ({ lat, lng })),
@@ -316,7 +322,7 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       polylines.forEach((p) => p.setMap(null))
       badges.forEach((b) => b.setMap(null))
     }
-  }, [ready, activeCats])
+  }, [ready, activeCats, routes])
 
   useEffect(() => {
     const map = mapRef.current
@@ -426,6 +432,14 @@ const GoogleView = forwardRef<MapViewHandle, MapViewProps>(function GoogleView(
       fitBook(book: MapBook) {
         const map = mapRef.current
         if (map) fitGoogle(map, book)
+      },
+      showRoute(r: Route) {
+        const map = mapRef.current
+        if (!map) return
+        const b = routeBounds(r)
+        map.fitBounds(b, fitPadding())
+        const [lng, lat] = routeLabelPoint(r)
+        showInfo(routeInfoNode(r), lat, lng)
       },
     }),
     [onSelect],

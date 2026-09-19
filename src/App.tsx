@@ -10,14 +10,14 @@ import { byId } from './data'
 import { EDEN_RIVERS } from './data/rivers'
 import { riverBounds } from './components/map/shared'
 import {
-  BOOK_ROUTE_CATS,
   bookFromSlug,
   bookSlug,
   loadBookIndex,
-  routeCatsFor,
   toMapBook,
   type BookIndex,
 } from './data/books'
+import { bookRoutes, drawnRoutes } from './data/bookRoutes'
+import { loadRoutes } from './data/routes'
 import { debounce } from './lib/debounce'
 import { GOOGLE_LOAD_LIMIT, getUsage, isAtGoogleLoadLimit } from './lib/usage'
 import {
@@ -32,7 +32,7 @@ import {
   snapToStep,
   type Axis,
 } from './lib/scrubber'
-import type { Era, Place } from './types'
+import type { Era, Place, Route } from './types'
 import './App.css'
 
 /** How long the map waits after the last scrubber move before following. */
@@ -171,9 +171,20 @@ function App() {
 
   const bookPlaces = book && bookIndex ? bookIndex[book] : null
   const mapBook = useMemo(() => (book && bookPlaces ? toMapBook(book, bookPlaces) : null), [book, bookPlaces])
-  // Some books draw their journeys (the Exodus route for Exodus and Leviticus) without a toggle.
-  const bookCats = book ? BOOK_ROUTE_CATS[book] ?? [] : []
-  const shownCats = useMemo(() => routeCatsFor(book, activeCats), [book, activeCats])
+  // The journeys a book tells draw on the map while it is open, until switched off.
+  const [showJourneys, setShowJourneys] = useState(true)
+  const [allRoutes, setAllRoutes] = useState<Route[] | null>(null)
+  useEffect(() => {
+    if (!book || allRoutes) return
+    loadRoutes().then(setAllRoutes, () => setAllRoutes([]))
+  }, [book, allRoutes])
+  const journeys = useMemo(() => bookRoutes(book, allRoutes ?? []), [book, allRoutes])
+  const drawn = useMemo(() => drawnRoutes(showJourneys ? journeys : []), [showJourneys, journeys])
+
+  function pickRoute(r: Route) {
+    setShowJourneys(true)
+    mapRef.current?.showRoute(r)
+  }
 
   useEffect(() => {
     if (!mapBook) {
@@ -223,7 +234,8 @@ function App() {
           baseMap={baseMap}
           showTerritories={showTerritories}
           showRivers={showRivers}
-          activeCats={shownCats}
+          activeCats={activeCats}
+          routes={drawn}
           selected={selected}
           book={mapBook}
           journey={journey}
@@ -270,12 +282,15 @@ function App() {
         onTerritories={setShowTerritories}
         showRivers={showRivers}
         onRivers={setShowRivers}
-        activeCats={shownCats}
-        bookCats={bookCats}
+        activeCats={activeCats}
         onToggleCat={toggleCat}
         book={book}
         bookPlaces={bookPlaces}
         bookError={bookError}
+        journeys={journeys}
+        showJourneys={showJourneys}
+        onShowJourneys={setShowJourneys}
+        onPickRoute={pickRoute}
         onBook={setBook}
         onPickPlace={pickPlace}
       />

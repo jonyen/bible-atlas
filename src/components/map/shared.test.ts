@@ -3,7 +3,7 @@ import type { Place, Route } from '../../types'
 import { PLACES } from '../../data'
 import { RIVERS } from '../../data/rivers'
 import { toMapBook } from '../../data/books'
-import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, readableAngle, riverBounds, riverLabel, riverLabelPoint, riverLabelSpan, placeColor, routeBadgeSvg, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
+import { cameraAt, eraMatch, journeyFade, labelIds, placeLabel, readableAngle, riverBounds, riverLabel, riverLabelPoint, riverLabelSpan, placeColor, routeBadgeSvg, routeBounds, routeLabelPoint, bookBounds, markerStyle, visiblePlaces } from './shared'
 import { BOTH_COLOR, MAX_LABELS, NT_COLOR, OT_COLOR } from './types'
 
 const place = (ot: boolean, nt: boolean) => ({ ot, nt }) as Place
@@ -296,6 +296,13 @@ describe('riverLabelSpan', () => {
     const [before, at, after] = riverLabelSpan(river)
     expect(at).toEqual(riverLabelPoint(river))
     expect(before).not.toEqual(after)
+  })
+})
+
+describe('routeBounds', () => {
+  it('spans every segment', () => {
+    const r = { paths: [[[35, 31], [36, 32]], [[34.5, 30.5]]] } as Route
+    expect(routeBounds(r)).toEqual({ west: 34.5, east: 36, south: 30.5, north: 32 })
   })
 })
 

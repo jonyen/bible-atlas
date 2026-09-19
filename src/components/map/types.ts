@@ -1,5 +1,6 @@
-import type { Era, Place } from '../../types'
+import type { Era, Place, Route } from '../../types'
 import type { MapBook } from '../../data/books'
+import type { DrawnRoute } from '../../data/bookRoutes'
 import type { BaseMap } from './basemap'
 
 export interface MapViewHandle {
@@ -12,6 +13,8 @@ export interface MapViewHandle {
   glideToBounds: (bounds: ViewportBounds) => void
   clearSelection: () => void
   fitBook: (book: MapBook) => void
+  /** Frame a journey and open its popup. */
+  showRoute: (route: Route) => void
 }
 
 export interface MapViewProps {
@@ -20,6 +23,8 @@ export interface MapViewProps {
   showTerritories: boolean
   showRivers: boolean
   activeCats: string[]
+  /** Journeys drawn whatever the category toggles say: the open book's, when shown. */
+  routes: DrawnRoute[]
   selected: Place | null
   book: MapBook | null
   journey: MapJourney | null

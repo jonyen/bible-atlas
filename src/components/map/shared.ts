@@ -165,6 +165,19 @@ export function findPlace(id: string): Place | undefined {
   return byId.get(id)
 }
 
+/** Bounding box of every segment of a route. */
+export function routeBounds(r: Route): ViewportBounds {
+  let south = 90, north = -90, west = 180, east = -180
+  for (const seg of r.paths)
+    for (const [lng, lat] of seg) {
+      south = Math.min(south, lat)
+      north = Math.max(north, lat)
+      west = Math.min(west, lng)
+      east = Math.max(east, lng)
+    }
+  return { south, north, west, east }
+}
+
 /** [lng, lat] to anchor a route's popup: the middle of its longest segment. */
 export function routeLabelPoint(r: Route): [number, number] {
   const seg = r.paths.reduce((a, b) => (b.length > a.length ? b : a))

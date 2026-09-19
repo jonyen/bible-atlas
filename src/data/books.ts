@@ -35,18 +35,6 @@ export const NT_BOOKS = BOOK_NAMES.slice(39)
 /** How many places the list shows, and the map highlights, before "Show all". */
 export const TOP_N = 15
 
-/** Route categories the map always draws while a book is open, on top of the user's toggles. */
-export const BOOK_ROUTE_CATS: Record<string, readonly string[]> = {
-  Exodus: ['Exodus & Wilderness'],
-  Leviticus: ['Exodus & Wilderness'],
-}
-
-/** The user's route toggles plus the categories a book always shows. */
-export function routeCatsFor(book: string | null, activeCats: string[]): string[] {
-  const forced = book ? BOOK_ROUTE_CATS[book] ?? [] : []
-  return [...activeCats, ...forced.filter((c) => !activeCats.includes(c))]
-}
-
 export function bookSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-')
 }

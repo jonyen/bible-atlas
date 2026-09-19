@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Era, Place } from '../types'
+import type { Era, Place, Route } from '../types'
 import { CAT_COLORS, ROUTE_CATS } from '../types'
 import { TERRITORIES } from '../data'
 import type { BookPlace } from '../data/books'
@@ -18,12 +18,14 @@ interface FilterPanelProps {
   showRivers: boolean
   onRivers: (v: boolean) => void
   activeCats: string[]
-  /** Categories the open book always shows; their toggles are locked on. */
-  bookCats: readonly string[]
   onToggleCat: (cat: string) => void
   book: string | null
   bookPlaces: BookPlace[] | null
   bookError: boolean
+  journeys: Route[]
+  showJourneys: boolean
+  onShowJourneys: (v: boolean) => void
+  onPickRoute: (r: Route) => void
   onBook: (name: string | null) => void
   onPickPlace: (place: Place) => void
 }
@@ -41,11 +43,14 @@ export default function FilterPanel({
   showRivers,
   onRivers,
   activeCats,
-  bookCats,
   onToggleCat,
   book,
   bookPlaces,
   bookError,
+  journeys,
+  showJourneys,
+  onShowJourneys,
+  onPickRoute,
   onBook,
   onPickPlace,
 }: FilterPanelProps) {
@@ -73,6 +78,13 @@ export default function FilterPanel({
             book={book}
             places={bookPlaces}
             error={bookError}
+            journeys={journeys}
+            showJourneys={showJourneys}
+            onShowJourneys={onShowJourneys}
+            onPickRoute={(r) => {
+              if (isPhone()) setOpen(false)
+              onPickRoute(r)
+            }}
             onBook={onBook}
             onPick={(place) => {
               // On phones the panel covers the map; get out of the way.
@@ -197,14 +209,12 @@ export default function FilterPanel({
             <ul className="route-toggles">
               {ROUTE_CATS.map((cat) => {
                 const on = activeCats.includes(cat)
-                const locked = bookCats.includes(cat)
                 return (
                   <li key={cat}>
-                    <label className={on ? 'on' : ''} title={locked ? `Always shown for ${book}` : undefined}>
+                    <label className={on ? 'on' : ''}>
                       <input
                         type="checkbox"
                         checked={on}
-                        disabled={locked}
                         onChange={() => onToggleCat(cat)}
                       />
                       <span

@@ -22,6 +22,7 @@ import {
   placeColor,
   sheetOffset,
   ROUTE_BADGE_R,
+  routeBounds,
   routeInfoNode,
   routeLabelPoint,
   territoryInfoNode,
@@ -62,7 +63,7 @@ function fitMapLibre(map: maplibregl.Map, book: MapBook) {
  * Drop-in alternative to the Google backend - switch with VITE_MAP_PROVIDER=maplibre.
  */
 const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreView(
-  { era, baseMap, showTerritories, showRivers, activeCats, selected, book, journey, onSelect, onReady },
+  { era, baseMap, showTerritories, showRivers, activeCats, routes, selected, book, journey, onSelect, onReady },
   ref,
 ) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -335,19 +336,21 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     const source = map.getSource(ROUTES_SOURCE) as maplibregl.GeoJSONSource
     const numSource = map.getSource(ROUTE_NUMS_SOURCE) as maplibregl.GeoJSONSource
     if (!source) return
-    if (!activeCats.length) {
+    if (!activeCats.length && !routes.length) {
       source.setData(fc([]))
+      numSource.setData(fc([]))
       return
     }
     let cancelled = false
-    loadRoutes().then((routes) => {
+    loadRoutes().then((all) => {
       if (cancelled) return
       const features: GeoJSON.Feature[] = []
       const numbers: GeoJSON.Feature[] = []
-      for (const r of routes) {
+      const forced = new Map(routes.map((d) => [d.route.id, d.color]))
+      for (const r of all) {
         routesByIdRef.current.set(r.id, r)
-        if (!activeCats.includes(r.cat)) continue
-        const color = CAT_COLORS[r.cat] ?? '#757575'
+        if (!activeCats.includes(r.cat) && !forced.has(r.id)) continue
+        const color = forced.get(r.id) ?? CAT_COLORS[r.cat] ?? '#757575'
         features.push({
           type: 'Feature',
           geometry: { type: 'MultiLineString', coordinates: r.paths },
@@ -365,7 +368,7 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
     return () => {
       cancelled = true
     }
-  }, [ready, activeCats])
+  }, [ready, activeCats, routes])
 
   useEffect(() => {
     const map = mapRef.current
@@ -410,8 +413,8 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       } else if (layer === ROUTES_LAYER || layer === ROUTE_NUMS_DISC) {
         const r = routesByIdRef.current.get(f.properties?.['route-id'])
         if (!r) return
-        const [lng, lat] = routeLabelPoint(r)
-        showPopup(routeInfoNode(r), lng, lat)
+        // Where the click landed, not the route's midpoint: the map stays put.
+        showPopup(routeInfoNode(r), e.lngLat.lng, e.lngLat.lat)
       } else if (layer === TERRITORIES_FILL || layer === TERRITORIES_LINE) {
         const t = TERRITORIES.find((x) => x.name === f.properties?.name)
         if (!t) return
@@ -466,6 +469,14 @@ const MapLibreView = forwardRef<MapViewHandle, MapViewProps>(function MapLibreVi
       fitBook(book: MapBook) {
         const map = mapRef.current
         if (map) fitMapLibre(map, book)
+      },
+      showRoute(r: Route) {
+        const map = mapRef.current
+        if (!map) return
+        const b = routeBounds(r)
+        map.fitBounds([[b.west, b.south], [b.east, b.north]], { padding: fitPadding(), maxZoom: 10 })
+        const [lng, lat] = routeLabelPoint(r)
+        showPopup(routeInfoNode(r), lng, lat)
       },
     }),
     [onSelect],
