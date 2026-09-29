@@ -11,4 +11,11 @@ jobs:
     steps:
       - run: |
           for r in 1.1.1.1 8.8.8.8; do echo "== @$r"; dig +noall +answer @$r bible.atlas.jonyen.com; done
-          curl -sS -o /dev/null -D - --max-time 20 https://bible.atlas.jonyen.com | head -12 || true
+          # Vercel issues the certificate a few minutes after DNS resolves; wait up to 15 min.
+          for i in $(seq 1 30); do
+            if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://bible.atlas.jonyen.com); then
+              echo "HTTPS OK after try $i: HTTP $code"; exit 0
+            fi
+            sleep 30
+          done
+          echo "Still no HTTPS after 15 minutes"; exit 1
