@@ -1,21 +1,35 @@
 name: Check domain
 
-# Temporary, read-only: does bible.atlas.jonyen.com resolve and serve the site?
+# Temporary, read-only: why bible.atlas.jonyen.com has no HTTPS yet.
 on:
   push:
     branches: [claude/blissful-brown-1xpud0]
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          for r in 1.1.1.1 8.8.8.8; do echo "== @$r"; dig +noall +answer @$r bible.atlas.jonyen.com; done
-          # Vercel issues the certificate a few minutes after DNS resolves; wait up to 15 min.
-          for i in $(seq 1 30); do
-            if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://bible.atlas.jonyen.com); then
-              echo "HTTPS OK after try $i: HTTP $code"; exit 0
-            fi
-            sleep 30
-          done
-          echo "Still no HTTPS after 15 minutes"; exit 1
+      - name: DNS
+        run: |
+          dig +noall +answer @1.1.1.1 bible.atlas.jonyen.com
+          for n in bible.atlas.jonyen.com atlas.jonyen.com jonyen.com; do echo "== CAA $n"; dig +short @1.1.1.1 CAA $n; done
+      - name: HTTP and TLS
+        continue-on-error: true
+        run: |
+          echo "== http"; curl -sS -o /dev/null -D - --max-time 20 http://bible.atlas.jonyen.com | head -8 || true
+          echo "== ACME path"; curl -sS -o /dev/null -w '%{http_code}\n' --max-time 20 http://bible.atlas.jonyen.com/.well-known/acme-challenge/test || true
+          echo "== tls"; echo | openssl s_client -connect bible.atlas.jonyen.com:443 -servername bible.atlas.jonyen.com 2>&1 | head -15 || true
+      - name: Vercel view
+        continue-on-error: true
+        run: |
+          H="Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}"
+          echo "== domain config"
+          curl -sS -H "$H" "https://api.vercel.com/v6/domains/bible.atlas.jonyen.com/config?teamId=$VERCEL_ORG_ID" | jq '{configuredBy, cnames, aValues, conflicts, acceptedChallenges, misconfigured}'
+          echo "== project domain"
+          curl -sS -H "$H" "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/domains/bible.atlas.jonyen.com?teamId=$VERCEL_ORG_ID" | jq '{name, verified, verification, redirect}'
+          echo "== certs"
+          curl -sS -H "$H" "https://api.vercel.com/v4/certs?teamId=$VERCEL_ORG_ID&limit=50" | jq '[.certs[]? | select(any(.cns[]; test("atlas")))] | map({cns, createdAt: (.createdAt/1000|todate), expiresAt: (.expiresAt/1000|todate), autoRenew})'
