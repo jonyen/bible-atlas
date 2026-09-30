@@ -76,6 +76,11 @@ short of the highlands.
 Tribal territory polygons are hand-curated approximations in
 `scripts/territories-data.mjs` based on Joshua 13–19.
 
+The link preview image (`public/og-image.png`, shown by iMessage and other
+unfurlers) is drawn from the place, route and river data. Regenerate it after
+the data changes with `node scripts/prepare-og-image.mjs` (set `CHROMIUM` to a
+headless Chromium binary if `chromium` isn't on your PATH).
+
 ## Data & license
 
 - Place data: OpenBible.info, CC-BY-4.0
